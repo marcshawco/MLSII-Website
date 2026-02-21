@@ -296,6 +296,41 @@ nav.active {
     transform: scale(1.05);
 }
 
+/* Enemies Page */
+.enemies-container {
+    min-height: 100vh;
+    padding: 8.5rem 1rem 6rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.enemies-list-wrap {
+    width: 100%;
+    max-width: 560px;
+    text-align: center;
+}
+
+.enemies-list-wrap h1 {
+    font-size: 2.4rem;
+    letter-spacing: 2px;
+    color: #4b4b4b;
+    margin-bottom: 1.5rem;
+}
+
+.enemies-list {
+    display: inline-block;
+    text-align: left;
+    padding-left: 1.5rem;
+    line-height: 1.9;
+    font-size: 1.08rem;
+    color: #5a5a5a;
+}
+
+.enemies-list li {
+    margin-bottom: 0.2rem;
+}
+
 /* Links Page */
 .links-container {
     padding: 5rem 4rem 4rem;
@@ -520,6 +555,20 @@ nav.active {
     .legal-links a {
         font-size: 0.72rem;
         letter-spacing: 1px;
+    }
+
+    .enemies-container {
+        padding: 7.2rem 1rem 4.75rem;
+        align-items: flex-start;
+    }
+
+    .enemies-list-wrap h1 {
+        font-size: 1.95rem;
+    }
+
+    .enemies-list {
+        font-size: 1rem;
+        line-height: 1.75;
     }
 
     .privacy-policy-container {
