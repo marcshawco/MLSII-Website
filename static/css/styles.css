@@ -18,7 +18,7 @@ body {
     top: 0;
     left: 0;
     width: 100%;
-    padding: 2rem;
+    padding: 1.4rem;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -27,7 +27,7 @@ body {
 }
 
 .site-title {
-    font-size: 2rem;
+    font-size: 1.4rem;
     color: #666;
     letter-spacing: 2px;
     text-decoration: none;
@@ -150,27 +150,6 @@ nav.active {
 
 .social-icon:hover {
     fill: #333;
-}
-
-.legal-links {
-    position: fixed;
-    bottom: 5rem;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 10;
-}
-
-.legal-links a {
-    color: #777;
-    text-decoration: none;
-    font-size: 0.78rem;
-    letter-spacing: 1.2px;
-    text-transform: uppercase;
-    transition: color 0.3s ease;
-}
-
-.legal-links a:hover {
-    color: #333;
 }
 
 /* Home Page */
@@ -488,10 +467,6 @@ nav.active {
     margin: 2rem auto 1rem;
 }
 
-.privacy_policy-page .legal-links {
-    display: none;
-}
-
 /* Mobile Styles */
 @media (max-width: 768px) {
     .portfolio-container {
@@ -548,13 +523,12 @@ nav.active {
         right: 15px;
     }
 
-    .legal-links {
-        bottom: 4.4rem;
+    .header {
+        padding: 1rem;
     }
 
-    .legal-links a {
-        font-size: 0.72rem;
-        letter-spacing: 1px;
+    .site-title {
+        font-size: 1.25rem;
     }
 
     .enemies-container {
