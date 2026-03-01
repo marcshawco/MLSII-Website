@@ -1,14 +1,51 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="home-container">
-    <h1 id="site-title" class="main-title">{{ title }}</h1>
+<section class="hero-shell">
+    <div class="hero-watermark" aria-hidden="true">PORTFOLIO</div>
 
-    <div class="home-links">
-        <a href="{{ url_for('portfolio') }}">PORTFOLIO</a>
-        <a href="{{ url_for('enemies') }}">ENEMIES</a>
-        <a href="{{ url_for('links') }}">LINK IN BIO</a>
-        <a href="{{ url_for('privacy_policy') }}">PRIVACY POLICY</a>
+    <header class="hero-nav">
+        <a class="hero-logo" href="{{ url_for('index') }}" aria-label="Home">
+            <span></span>
+        </a>
+
+        <nav class="hero-nav-links" aria-label="Primary">
+            <a href="#">About Me</a>
+            <a href="{{ url_for('portfolio') }}">Portfolio</a>
+            <a href="#">Services</a>
+            <a href="#">Blog</a>
+        </nav>
+
+        <a class="hero-call-link" href="#">
+            Book A Call
+            <span aria-hidden="true">↗</span>
+        </a>
+    </header>
+
+    <div class="hero-main">
+        <div class="hero-left">
+            <div class="hero-stats">
+                <div class="hero-stat">
+                    <span class="hero-stat-number">+200</span>
+                    <span class="hero-stat-label">Projects completed</span>
+                </div>
+                <div class="hero-stat">
+                    <span class="hero-stat-number">+50</span>
+                    <span class="hero-stat-label">Startups raised</span>
+                </div>
+            </div>
+
+            <h1 class="hero-title">Hello</h1>
+            <p class="hero-subtitle">— It's {{ title|title }} a design wizard</p>
+        </div>
+
+        <div class="hero-right">
+            <div class="hero-portrait" role="img" aria-label="Black and white portrait placeholder"></div>
+        </div>
     </div>
 
-</div>
+    <div class="hero-scroll">
+        <span>Scroll down</span>
+        <span aria-hidden="true">↓</span>
+    </div>
+</section>
 {% endblock %}
