@@ -250,31 +250,6 @@ nav.active {
     padding-left: 1rem;
 }
 
-.hero-stats {
-    display: flex;
-    gap: 1.75rem;
-    margin-bottom: 2rem;
-}
-
-.hero-stat {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-}
-
-.hero-stat-number {
-    font-size: 1rem;
-    color: var(--mono-text);
-    letter-spacing: 0.02em;
-    font-weight: 400;
-}
-
-.hero-stat-label {
-    font-size: 0.72rem;
-    color: var(--mono-muted);
-    letter-spacing: 0.02em;
-}
-
 .hero-title {
     font-size: clamp(4.8rem, 14vw, 12rem);
     line-height: 0.9;
@@ -312,20 +287,6 @@ nav.active {
     object-position: center top;
     filter: grayscale(1);
     display: block;
-}
-
-.hero-scroll {
-    position: absolute;
-    left: 3.2rem;
-    bottom: 2rem;
-    z-index: 2;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.8rem;
-    color: var(--mono-muted);
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
 }
 
 /* Portfolio Page */
@@ -658,11 +619,6 @@ nav.active {
         padding-left: 0;
     }
 
-    .hero-stats {
-        gap: 1rem;
-        margin-bottom: 1.2rem;
-    }
-
     .hero-title {
         font-size: clamp(3.8rem, 26vw, 5.8rem);
         margin-bottom: 0.65rem;
@@ -679,12 +635,6 @@ nav.active {
     .hero-portrait {
         width: min(320px, 95%);
         border-radius: 14px;
-    }
-
-    .hero-scroll {
-        left: 1rem;
-        bottom: 0.8rem;
-        font-size: 0.66rem;
     }
 
     .portfolio-container {
