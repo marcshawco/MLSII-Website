@@ -214,10 +214,11 @@ nav.active {
     display: flex;
     gap: 2rem;
     align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
 }
 
-.hero-nav-links a,
-.hero-call-link {
+.hero-nav-links a {
     text-decoration: none;
     color: var(--mono-text);
     font-size: 0.84rem;
@@ -226,15 +227,13 @@ nav.active {
     transition: opacity 0.2s ease;
 }
 
-.hero-nav-links a:hover,
-.hero-call-link:hover {
+.hero-nav-links a:hover {
     opacity: 0.65;
 }
 
-.hero-call-link {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
+.hero-nav-spacer {
+    width: 46px;
+    height: 46px;
 }
 
 .hero-main {
@@ -637,10 +636,14 @@ nav.active {
         gap: 0.7rem;
     }
 
-    .hero-nav-links a,
-    .hero-call-link {
+    .hero-nav-links a {
         font-size: 0.62rem;
         letter-spacing: 0.02em;
+    }
+
+    .hero-nav-spacer {
+        width: 34px;
+        height: 34px;
     }
 
     .hero-main {
