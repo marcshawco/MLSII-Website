@@ -135,7 +135,7 @@ body:not(.index-page) .menu-button {
     display: none;
 }
 
-nav {
+.drawer-nav {
     position: fixed;
     right: -100%;
     top: 0;
@@ -149,7 +149,7 @@ nav {
     box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
 }
 
-nav.active {
+.drawer-nav.active {
     right: 0;
 }
 
@@ -248,6 +248,13 @@ nav.active {
     align-items: center;
     justify-content: center;
     flex-wrap: wrap;
+    position: static;
+    inset: auto;
+    height: auto;
+    max-width: none;
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
 }
 
 .hero-nav-links a {
@@ -735,7 +742,7 @@ nav.active {
         gap: 1.5rem;
     }
 
-    nav {
+    .drawer-nav {
         width: 100%;
         max-width: 100%;
     }
