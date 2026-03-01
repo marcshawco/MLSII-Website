@@ -65,9 +65,9 @@ def get_site_title():
     title_mapping = {
         'saintlazell.com': 'SAINTLAZELL',
         'marcuslshaw.com': 'MARCUS SHAW',
-        'thesaintmarcus.com': 'THE SAINT MARCUS'
+        'thesaintmarcus.com': 'MARC SHAW'
     }
-    return title_mapping.get(domain, 'THE SAINT MARCUS')
+    return title_mapping.get(domain, 'MARC SHAW')
 
 @app.route('/')
 def index():

@@ -53,8 +53,8 @@ MLSII-Website/
 `app.py` maps the displayed title based on request host:
 - `saintlazell.com` -> `SAINTLAZELL`
 - `marcuslshaw.com` -> `MARCUS SHAW`
-- `thesaintmarcus.com` -> `THE SAINT MARCUS`
-- fallback -> `THE SAINT MARCUS`
+- `thesaintmarcus.com` -> `MARC SHAW`
+- fallback -> `MARC SHAW`
 
 ### Security headers
 Responses include default headers via `@app.after_request`:
