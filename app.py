@@ -76,7 +76,7 @@ def index():
 
 @app.route('/portfolio')
 def portfolio():
-    title = get_site_title()
+    title = 'MARC SHAW'
     portfolio_items = get_media_from_bunny()
     return render_template('portfolio.html', portfolio_items=portfolio_items, title=title)
 

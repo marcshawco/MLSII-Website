@@ -2,25 +2,7 @@
 {% block content %}
 
 <div class="portfolio-container">
-    <div class="sidebar">
-        <div class="profile-image">
-            <img src="{{ url_for('static', filename='images/profile.png') }}" alt="SAINT MARCUS" class="profile-pic">
-        </div>
-
-        <div class="creator-tagline">SAINT MARCUS</div>
-
-        <div class="bio desktop-only">
-            <p>
-                Marcus is a Los Angeles-based photographer.
-                With seven years of experience, he approaches each shot as if it were destined for a wall display.
-                Guided by a collector's mindset, Marcus infuses every frame with timeless style, subtle storytelling,
-                and a hint of nostalgia. His goal is to create images that tell a story worth remembering.
-                Each photograph he takes is more than just a picture—it's a cherished piece of art waiting to be
-                admired.
-            </p>
-        </div>
-    </div>
-
+    <h1 class="visuals-title">VISUALS</h1>
     <div class="portfolio-wrapper">
         <div class="portfolio-grid">
             {% for item in portfolio_items %}
@@ -37,9 +19,5 @@
         </div>
     </div>
 </div>
-
-<footer>
-    <p>&copy; SAINT MARCUS</p>
-</footer>
 
 {% endblock %}
