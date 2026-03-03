@@ -30,7 +30,14 @@
 
         <div class="hero-right">
             <div class="hero-portrait">
-                <img src="{{ url_for('static', filename='images/hero-portrait.png') }}" alt="Professional portrait">
+                <img
+                    src="{{ url_for('static', filename='images/hero-portrait.jpg') }}"
+                    alt="Professional portrait"
+                    width="800"
+                    height="1200"
+                    fetchpriority="high"
+                    loading="eager"
+                    decoding="async">
             </div>
         </div>
     </div>

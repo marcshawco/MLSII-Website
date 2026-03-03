@@ -5,7 +5,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title }}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css', v='20260301-enemies-align') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500&display=swap">
+    {% if request.endpoint == 'index' %}
+    <link rel="preload" as="image" href="{{ url_for('static', filename='images/hero-portrait.jpg') }}">
+    {% endif %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css', v='20260302-perf-pass1') }}">
     <style>
         .bio {
             font-size: 0.9rem;
