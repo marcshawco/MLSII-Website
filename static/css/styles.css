@@ -12,7 +12,7 @@
 }
 
 body {
-    font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
     color: var(--mono-text);
     background-color: var(--mono-bg);
     letter-spacing: 1px;
