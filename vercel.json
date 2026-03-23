@@ -2,6 +2,10 @@
     "version": 2,
     "builds": [
         {
+            "src": "index.html",
+            "use": "@vercel/static"
+        },
+        {
             "src": "app.py",
             "use": "@vercel/python",
             "config": {
@@ -15,6 +19,13 @@
         }
     ],
     "routes": [
+        {
+            "src": "/$",
+            "dest": "/index.html",
+            "headers": {
+                "cache-control": "public, max-age=0, s-maxage=300, stale-while-revalidate=600"
+            }
+        },
         {
             "src": "/static/(.*)",
             "dest": "/static/$1",

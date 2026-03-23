@@ -1,4 +1,5 @@
 import os
+import json
 import time
 import requests
 from flask import Flask, g, render_template, request
@@ -18,6 +19,9 @@ BUNNY_PULL_ZONE_URL = os.environ.get('BUNNY_PULL_ZONE_URL')
 BUNNY_MEDIA_CACHE_TTL_SECONDS = int(os.environ.get('BUNNY_MEDIA_CACHE_TTL_SECONDS', '300'))
 HTML_CACHE_TTL_SECONDS = int(os.environ.get('HTML_CACHE_TTL_SECONDS', '300'))
 PORTFOLIO_HTML_CACHE_TTL_SECONDS = int(os.environ.get('PORTFOLIO_HTML_CACHE_TTL_SECONDS', '60'))
+PORTFOLIO_MEDIA_SNAPSHOT_PATH = os.path.join(
+    app.root_path, 'static', 'data', 'portfolio-media.json'
+)
 
 # Warm lambda instances can reuse this to avoid re-fetching Bunny on every request.
 BUNNY_MEDIA_CACHE = {
@@ -65,10 +69,27 @@ def add_header(response):
     )
     return response
 
+
+def load_media_snapshot():
+    try:
+        with open(PORTFOLIO_MEDIA_SNAPSHOT_PATH, 'r', encoding='utf-8') as snapshot_file:
+            snapshot = json.load(snapshot_file)
+        if isinstance(snapshot, list):
+            return snapshot
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return []
+    return []
+
+
+SNAPSHOT_MEDIA = load_media_snapshot()
+if SNAPSHOT_MEDIA:
+    BUNNY_MEDIA_CACHE['data'] = SNAPSHOT_MEDIA
+    BUNNY_MEDIA_CACHE['expires_at'] = time.time() + BUNNY_MEDIA_CACHE_TTL_SECONDS
+
 def get_media_from_bunny():
     """Fetch media files from BunnyCDN."""
     if not all([BUNNY_STORAGE_ZONE, BUNNY_API_KEY, BUNNY_PULL_ZONE_URL]):
-        return []
+        return SNAPSHOT_MEDIA
 
     now = time.time()
     if BUNNY_MEDIA_CACHE['expires_at'] > now:
@@ -98,7 +119,7 @@ def get_media_from_bunny():
     except Exception:
         if BUNNY_MEDIA_CACHE['data']:
             return BUNNY_MEDIA_CACHE['data']
-        return []
+        return SNAPSHOT_MEDIA
 
 def get_site_title():
     domain = request.host.split(':')[0].lower()  # Convert to lowercase
