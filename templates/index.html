@@ -27,18 +27,36 @@
                 <span class="hero-title-bottom">Shaw</span>
             </h1>
             <p class="hero-subtitle">Creative Director &amp; Cloud Engineer</p>
+
+            <a class="hero-feature-link" href="{{ url_for('essentials') }}">
+                <span class="hero-feature-kicker">New Playlist</span>
+                <span class="hero-feature-title">Marc Shaw Essentials</span>
+                <span class="hero-feature-meta">Apple Music</span>
+            </a>
         </div>
 
         <div class="hero-right">
-            <div class="hero-portrait">
-                <img
-                    src="{{ url_for('static', filename='images/hero-portrait.jpg') }}"
-                    alt="Professional portrait"
-                    width="800"
-                    height="1200"
-                    fetchpriority="high"
-                    loading="eager"
-                    decoding="async">
+            <div class="hero-visual-stack">
+                <div class="hero-portrait">
+                    <img
+                        src="{{ url_for('static', filename='images/hero-portrait.jpg') }}"
+                        alt="Professional portrait"
+                        width="800"
+                        height="1200"
+                        fetchpriority="high"
+                        loading="eager"
+                        decoding="async">
+                </div>
+
+                <a class="hero-playlist-card" href="{{ url_for('essentials') }}" aria-label="Open Marc Shaw Essentials playlist page">
+                    <img
+                        src="{{ url_for('static', filename='images/marc-shaw-essentials.png') }}"
+                        alt="Marc Shaw Essentials playlist artwork"
+                        width="1024"
+                        height="1024"
+                        loading="lazy"
+                        decoding="async">
+                </a>
             </div>
         </div>
     </div>
