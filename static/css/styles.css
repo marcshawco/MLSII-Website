@@ -487,7 +487,7 @@ body:not(.index-page) .menu-button {
 /* Essentials Page */
 .essentials-page {
     min-height: 100vh;
-    padding: 6.2rem 1.5rem 4.5rem;
+    padding: 4.75rem 1.5rem 4rem;
     background: var(--mono-bg);
 }
 
@@ -501,7 +501,7 @@ body:not(.index-page) .menu-button {
 .essentials-watermark {
     position: absolute;
     left: 50%;
-    top: 5.9rem;
+    top: 4.45rem;
     transform: translateX(-50%);
     font-size: clamp(4.5rem, 15vw, 11rem);
     letter-spacing: 0.08em;
@@ -806,7 +806,7 @@ body:not(.index-page) .menu-button {
     }
 
     .essentials-page {
-        padding: 6.1rem 0.85rem 2rem;
+        padding: 5.2rem 0.85rem 2rem;
     }
 
     .essentials-grid,
@@ -816,7 +816,7 @@ body:not(.index-page) .menu-button {
     }
 
     .essentials-watermark {
-        top: 5.4rem;
+        top: 4.5rem;
         font-size: 4.2rem;
     }
 
