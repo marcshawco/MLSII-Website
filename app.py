@@ -149,6 +149,11 @@ def links():
     title = get_site_title()
     return render_template('links.html', title=title)
 
+@app.route('/essentials')
+def essentials():
+    title = 'MARC SHAW ESSENTIALS'
+    return render_template('essentials.html', title=title)
+
 @app.route('/enemies')
 def enemies():
     title = get_site_title()

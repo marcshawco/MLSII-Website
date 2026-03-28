@@ -484,6 +484,239 @@ body:not(.index-page) .menu-button {
     text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
 }
 
+/* Essentials Page */
+.essentials-page {
+    position: relative;
+    min-height: 100vh;
+    padding: 7.5rem 1.25rem 4rem;
+    background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0) 38%),
+        linear-gradient(135deg, #111111 0%, #1b1b1b 48%, #f3f3f1 48%, #ffffff 100%);
+    overflow: hidden;
+}
+
+.essentials-noise {
+    position: absolute;
+    inset: 0;
+    opacity: 0.08;
+    background-image:
+        radial-gradient(circle at 20% 20%, #ffffff 0, transparent 24%),
+        radial-gradient(circle at 80% 30%, #000000 0, transparent 22%),
+        radial-gradient(circle at 50% 80%, #bdbdbd 0, transparent 24%);
+    mix-blend-mode: overlay;
+    pointer-events: none;
+}
+
+.essentials-shell {
+    position: relative;
+    z-index: 1;
+    width: min(1220px, 100%);
+    margin: 0 auto;
+}
+
+.essentials-topline {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    color: #f1f1f1;
+}
+
+.essentials-kicker,
+.essentials-top-link {
+    font-size: 0.82rem;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+}
+
+.essentials-top-link {
+    color: #f1f1f1;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.35);
+    padding-bottom: 0.25rem;
+}
+
+.essentials-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+    gap: 2rem;
+    align-items: stretch;
+}
+
+.essentials-copy,
+.essentials-artwork-frame,
+.essentials-player-card {
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.12);
+}
+
+.essentials-copy {
+    background: rgba(10, 10, 10, 0.92);
+    color: #f7f7f5;
+    padding: clamp(2rem, 4vw, 4rem);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 100%;
+}
+
+.essentials-label {
+    font-size: 0.82rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.6);
+    margin-bottom: 1.15rem;
+}
+
+.essentials-title {
+    font-size: clamp(3.4rem, 9vw, 7rem);
+    line-height: 0.88;
+    font-weight: 800;
+    letter-spacing: -0.05em;
+    text-transform: uppercase;
+    margin-bottom: 1.35rem;
+}
+
+.essentials-title span {
+    display: block;
+}
+
+.essentials-description {
+    max-width: 28ch;
+    font-size: 1.08rem;
+    line-height: 1.7;
+    color: rgba(255, 255, 255, 0.78);
+}
+
+.essentials-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.85rem;
+    margin: 2rem 0 2.2rem;
+}
+
+.essentials-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 48px;
+    padding: 0.9rem 1.3rem;
+    text-decoration: none;
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    transition: transform 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+}
+
+.essentials-button:hover {
+    transform: translateY(-2px);
+}
+
+.essentials-button-primary {
+    background: #f7f7f5;
+    color: #111111;
+}
+
+.essentials-button-secondary {
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    color: #f7f7f5;
+}
+
+.essentials-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+    padding-top: 1.3rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.essentials-stats dt {
+    font-size: 0.72rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 0.55rem;
+}
+
+.essentials-stats dd {
+    font-size: 1rem;
+    line-height: 1.45;
+    color: #ffffff;
+}
+
+.essentials-artwork-wrap {
+    display: flex;
+    align-items: stretch;
+}
+
+.essentials-artwork-frame {
+    width: 100%;
+    background: #ffffff;
+    padding: 1rem;
+    border: 1px solid rgba(17, 17, 17, 0.08);
+}
+
+.essentials-artwork-frame img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: grayscale(1) contrast(1.02);
+}
+
+.essentials-player-card {
+    margin-top: 2rem;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(17, 17, 17, 0.08);
+    padding: clamp(1.25rem, 3vw, 2rem);
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    gap: 1.5rem;
+    align-items: center;
+}
+
+.essentials-player-label {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: #666666;
+    margin-bottom: 0.7rem;
+}
+
+.essentials-player-copy h2 {
+    font-size: clamp(2rem, 4vw, 3.4rem);
+    line-height: 0.95;
+    letter-spacing: -0.04em;
+    color: #131313;
+    margin-bottom: 0.9rem;
+}
+
+.essentials-player-copy p {
+    max-width: 34ch;
+    font-size: 1rem;
+    line-height: 1.7;
+    color: #444444;
+}
+
+.essentials-embed-wrap {
+    min-width: 0;
+}
+
+.essentials-embed-wrap iframe {
+    width: 100%;
+    border: 0;
+    border-radius: 18px;
+    background: #ffffff;
+}
+
+.essentials-page .social-links {
+    position: static;
+    transform: none;
+    justify-content: center;
+    margin: 2rem auto 0;
+}
+
 /* Privacy Policy Page */
 .privacy-policy-container {
     padding: 9.5rem 1.5rem 7rem;
@@ -696,6 +929,49 @@ body:not(.index-page) .menu-button {
     .links-grid {
         grid-template-columns: 1fr;
         gap: 1.5rem;
+    }
+
+    .essentials-page {
+        padding: 7rem 0.85rem 2rem;
+        background:
+            linear-gradient(180deg, #101010 0%, #1a1a1a 36%, #ededeb 36%, #ffffff 100%);
+    }
+
+    .essentials-topline {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .essentials-grid,
+    .essentials-player-card,
+    .essentials-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .essentials-copy {
+        padding: 1.4rem;
+    }
+
+    .essentials-title {
+        font-size: clamp(2.8rem, 15vw, 4.6rem);
+    }
+
+    .essentials-description,
+    .essentials-player-copy p {
+        max-width: none;
+    }
+
+    .essentials-artwork-frame {
+        padding: 0.65rem;
+    }
+
+    .essentials-player-card {
+        margin-top: 1rem;
+        padding: 1rem;
+    }
+
+    .essentials-embed-wrap iframe {
+        height: 500px;
     }
 
     .drawer-nav {
