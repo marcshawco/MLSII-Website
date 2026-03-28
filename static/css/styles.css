@@ -411,6 +411,7 @@ body:not(.index-page) .menu-button {
     letter-spacing: 2px;
     color: #4b4b4b;
     margin-bottom: 1.5rem;
+    margin-left: -1ch;
 }
 
 .enemies-list {
