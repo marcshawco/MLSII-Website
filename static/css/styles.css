@@ -311,48 +311,9 @@ body:not(.index-page) .menu-button {
     letter-spacing: 0.01em;
 }
 
-.hero-feature-link {
-    display: inline-flex;
-    flex-direction: column;
-    gap: 0.28rem;
-    margin-top: 2rem;
-    text-decoration: none;
-    color: var(--mono-text);
-    padding-top: 1rem;
-    border-top: 1px solid #ececec;
-    max-width: 240px;
-    transition: opacity 0.2s ease, transform 0.2s ease;
-}
-
-.hero-feature-link:hover {
-    opacity: 0.72;
-    transform: translateY(-1px);
-}
-
-.hero-feature-kicker,
-.hero-feature-meta {
-    font-size: 0.72rem;
-    color: var(--mono-muted);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-}
-
-.hero-feature-title {
-    font-size: 1.05rem;
-    letter-spacing: 0.01em;
-}
-
 .hero-right {
     display: flex;
     justify-content: center;
-}
-
-.hero-visual-stack {
-    position: relative;
-    width: min(560px, 100%);
-    display: flex;
-    justify-content: center;
-    align-items: flex-end;
 }
 
 .hero-portrait {
@@ -371,31 +332,6 @@ body:not(.index-page) .menu-button {
     object-position: center top;
     filter: grayscale(1);
     display: block;
-}
-
-.hero-playlist-card {
-    position: absolute;
-    left: 0;
-    bottom: -2.5rem;
-    width: min(168px, 34%);
-    border-radius: 18px;
-    overflow: hidden;
-    border: 1px solid #ececec;
-    background: #ffffff;
-    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.08);
-    transition: transform 0.22s ease, box-shadow 0.22s ease;
-}
-
-.hero-playlist-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 20px 42px rgba(0, 0, 0, 0.12);
-}
-
-.hero-playlist-card img {
-    display: block;
-    width: 100%;
-    height: auto;
-    filter: grayscale(1);
 }
 
 /* Portfolio Page */
@@ -838,30 +774,12 @@ body:not(.index-page) .menu-button {
         font-size: 0.86rem;
     }
 
-    .hero-feature-link {
-        margin-top: 1.15rem;
-        max-width: none;
-    }
-
     .hero-right {
-        justify-content: flex-start;
-    }
-
-    .hero-visual-stack {
-        width: min(360px, 100%);
         justify-content: flex-start;
     }
 
     .hero-portrait {
         width: min(320px, 95%);
-        border-radius: 14px;
-    }
-
-    .hero-playlist-card {
-        width: min(118px, 34%);
-        left: auto;
-        right: 0;
-        bottom: -1.2rem;
         border-radius: 14px;
     }
 
