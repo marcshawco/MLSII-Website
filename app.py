@@ -159,11 +159,5 @@ def enemies():
     title = get_site_title()
     return render_template('enemies.html', title=title)
 
-@app.route('/privacy-policy')
-@app.route('/gamelife-privacy-policy')
-def privacy_policy():
-    title = get_site_title()
-    return render_template('privacy_policy.html', title=title)
-
 if __name__ == '__main__':
     app.run(debug=True)
