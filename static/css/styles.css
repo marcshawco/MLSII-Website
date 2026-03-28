@@ -411,13 +411,13 @@ body:not(.index-page) .menu-button {
     letter-spacing: 2px;
     color: #4b4b4b;
     margin-bottom: 1.5rem;
-    padding-left: 1.5rem;
 }
 
 .enemies-list {
     display: block;
     text-align: left;
-    padding-left: 1.5rem;
+    padding-left: 0;
+    list-style-position: inside;
     line-height: 1.9;
     font-size: 1.08rem;
     color: #5a5a5a;
