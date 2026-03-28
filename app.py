@@ -151,7 +151,7 @@ def links():
 
 @app.route('/essentials')
 def essentials():
-    title = 'MARC SHAW ESSENTIALS'
+    title = 'MARC SHAW AUDIO'
     return render_template('essentials.html', title=title)
 
 @app.route('/enemies')

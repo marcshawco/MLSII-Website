@@ -11,7 +11,7 @@
         <nav class="hero-nav-links" aria-label="Primary">
             <a href="{{ url_for('index') }}">Home</a>
             <a href="{{ url_for('portfolio') }}">Visuals</a>
-            <a href="{{ url_for('essentials') }}">Essentials</a>
+            <a href="{{ url_for('essentials') }}">Audio</a>
             <a href="{{ url_for('enemies') }}">Enemies</a>
             <a href="{{ url_for('links') }}">Link In Bio</a>
             <a href="{{ url_for('privacy_policy') }}">Privacy Policy</a>
@@ -29,8 +29,8 @@
             <p class="hero-subtitle">Creative Director &amp; Cloud Engineer</p>
 
             <a class="hero-feature-link" href="{{ url_for('essentials') }}">
-                <span class="hero-feature-kicker">New Playlist</span>
-                <span class="hero-feature-title">Marc Shaw Essentials</span>
+                <span class="hero-feature-kicker">Audio</span>
+                <span class="hero-feature-title">Marc Shaw Audio</span>
                 <span class="hero-feature-meta">Apple Music</span>
             </a>
         </div>
@@ -48,10 +48,10 @@
                         decoding="async">
                 </div>
 
-                <a class="hero-playlist-card" href="{{ url_for('essentials') }}" aria-label="Open Marc Shaw Essentials playlist page">
+                <a class="hero-playlist-card" href="{{ url_for('essentials') }}" aria-label="Open Marc Shaw Audio page">
                     <img
                         src="{{ url_for('static', filename='images/marc-shaw-essentials.png') }}"
-                        alt="Marc Shaw Essentials playlist artwork"
+                        alt="Marc Shaw Audio playlist artwork"
                         width="1024"
                         height="1024"
                         loading="lazy"
