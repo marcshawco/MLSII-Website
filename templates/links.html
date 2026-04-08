@@ -4,8 +4,9 @@
 <div class="links-container">
     <h1 class="links-title">LINK IN BIO</h1>
 
+    {% if links.m1_referral_url %}
     <div class="links-grid">
-        <a href="https://dashboard.m1.com/signup/referrals?referrerCode=2xNRzQybNlnb&utm_medium=referral&utm_campaign=31835&utm_source=2xNRzQybNlnb"
+        <a href="{{ links.m1_referral_url }}"
             class="link-button" target="_blank" rel="noopener noreferrer">
             <div class="link-image"
                 style="background-image: url('{{ url_for('static', filename='images/m1-preview.png') }}');">
@@ -13,6 +14,7 @@
             </div>
         </a>
     </div>
+    {% endif %}
 </div>
 
 {% endblock %}

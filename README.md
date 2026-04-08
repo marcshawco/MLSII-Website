@@ -94,6 +94,9 @@ Required for portfolio media:
 - `BUNNY_STORAGE_ZONE` (Bunny storage zone name)
 - `BUNNY_ACCESS_KEY` (Bunny storage API key)
 
+Optional personal link:
+- `M1_REFERRAL_URL` (recommended for production instead of hardcoding a personal referral URL)
+
 ## Local Development
 
 ### 1. Create and activate virtualenv
@@ -139,6 +142,7 @@ Set these in the Vercel project settings:
 - `BUNNY_PULL_ZONE_URL`
 - `BUNNY_STORAGE_ZONE`
 - `BUNNY_ACCESS_KEY`
+- `M1_REFERRAL_URL` (if you want the M1 button live in production)
 
 Then redeploy.
 
@@ -149,6 +153,20 @@ Then redeploy.
 - Update Link in Bio buttons: `templates/links.html`
 - Update Privacy Policy text: `templates/privacy_policy.html`
 - Update styles/spacing/responsiveness: `static/css/styles.css`
+
+## Private Local Data
+
+Store sensitive personal values in `private/`, which is gitignored.
+
+For local-only links, create `private/links.json` with this shape:
+
+```json
+{
+  "m1_referral_url": ""
+}
+```
+
+In production, prefer setting `M1_REFERRAL_URL` as an environment variable.
 
 ## Notes on Caching
 

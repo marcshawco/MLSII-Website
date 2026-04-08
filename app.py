@@ -22,6 +22,7 @@ PORTFOLIO_HTML_CACHE_TTL_SECONDS = int(os.environ.get('PORTFOLIO_HTML_CACHE_TTL_
 PORTFOLIO_MEDIA_SNAPSHOT_PATH = os.path.join(
     app.root_path, 'static', 'data', 'portfolio-media.json'
 )
+PRIVATE_LINKS_PATH = os.path.join(app.root_path, 'private', 'links.json')
 
 # Warm lambda instances can reuse this to avoid re-fetching Bunny on every request.
 BUNNY_MEDIA_CACHE = {
@@ -86,6 +87,27 @@ if SNAPSHOT_MEDIA:
     BUNNY_MEDIA_CACHE['data'] = SNAPSHOT_MEDIA
     BUNNY_MEDIA_CACHE['expires_at'] = time.time() + BUNNY_MEDIA_CACHE_TTL_SECONDS
 
+
+def load_private_links():
+    links = {}
+
+    try:
+        with open(PRIVATE_LINKS_PATH, 'r', encoding='utf-8') as links_file:
+            private_links = json.load(links_file)
+        if isinstance(private_links, dict):
+            links = private_links
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        links = {}
+
+    m1_referral_url = os.environ.get('M1_REFERRAL_URL') or links.get('m1_referral_url', '')
+    if not isinstance(m1_referral_url, str):
+        m1_referral_url = ''
+
+    return {
+        'm1_referral_url': m1_referral_url.strip(),
+    }
+
+
 def get_media_from_bunny():
     """Fetch media files from BunnyCDN."""
     if not all([BUNNY_STORAGE_ZONE, BUNNY_API_KEY, BUNNY_PULL_ZONE_URL]):
@@ -121,6 +143,7 @@ def get_media_from_bunny():
             return BUNNY_MEDIA_CACHE['data']
         return SNAPSHOT_MEDIA
 
+
 def get_site_title():
     domain = request.host.split(':')[0].lower()  # Convert to lowercase
     if domain.startswith('www.'):
@@ -132,6 +155,7 @@ def get_site_title():
         'thesaintmarcus.com': 'MARC SHAW'
     }
     return title_mapping.get(domain, 'MARC SHAW')
+
 
 @app.route('/')
 def index():
@@ -147,7 +171,7 @@ def portfolio():
 @app.route('/links')
 def links():
     title = get_site_title()
-    return render_template('links.html', title=title)
+    return render_template('links.html', title=title, links=load_private_links())
 
 @app.route('/essentials')
 def essentials():
@@ -158,6 +182,7 @@ def essentials():
 def enemies():
     title = get_site_title()
     return render_template('enemies.html', title=title)
+
 
 if __name__ == '__main__':
     app.run(debug=True)

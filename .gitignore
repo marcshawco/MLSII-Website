@@ -42,3 +42,10 @@ Thumbs.db
 
 # Vercel
 .vercel
+
+# Node
+node_modules/
+
+# Local sensitive data
+private/*
+!private/README.md
