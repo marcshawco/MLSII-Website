@@ -2,19 +2,7 @@
 {% block content %}
 
 <div class="links-container">
-    <h1 class="links-title">LINK IN BIO</h1>
-
-    {% if links.m1_referral_url %}
-    <div class="links-grid">
-        <a href="{{ links.m1_referral_url }}"
-            class="link-button" target="_blank" rel="noopener noreferrer">
-            <div class="link-image"
-                style="background-image: url('{{ url_for('static', filename='images/m1-preview.png') }}');">
-                <span class="link-text">M1 Referral</span>
-            </div>
-        </a>
-    </div>
-    {% endif %}
+    <div class="links-soon">Soon...</div>
 </div>
 
 {% endblock %}

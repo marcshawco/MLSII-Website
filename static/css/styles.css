@@ -436,6 +436,10 @@ body:not(.index-page) .menu-button {
     text-align: center;
     position: relative;
     z-index: 1;
+    min-height: calc(100vh - 5rem);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .links-title {
@@ -445,6 +449,13 @@ body:not(.index-page) .menu-button {
     letter-spacing: 2px;
     margin-bottom: 4rem;
     padding-top: 2rem;
+}
+
+.links-soon {
+    font-size: clamp(3rem, 9vw, 7rem);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: #111;
 }
 
 .links-grid {
