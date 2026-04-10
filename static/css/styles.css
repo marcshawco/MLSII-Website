@@ -456,10 +456,10 @@ body:not(.index-page) .menu-button {
 }
 
 .links-soon {
-    font-size: clamp(4rem, 12vw, 8.8rem);
-    font-weight: 600;
+    font-size: clamp(2.4rem, 7.2vw, 5.3rem);
+    font-weight: 400;
     line-height: 1;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.08em;
     color: var(--mono-text);
     flex: 1;
     display: flex;
