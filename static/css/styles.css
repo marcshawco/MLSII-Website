@@ -456,16 +456,15 @@ body:not(.index-page) .menu-button {
 }
 
 .links-soon {
-    font-size: clamp(10rem, 30vw, 22rem);
-    font-weight: 700;
-    line-height: 0.95;
+    font-size: clamp(4rem, 12vw, 8.8rem);
+    font-weight: 600;
+    line-height: 1;
     letter-spacing: 0.06em;
-    color: #111;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 100%;
+    color: var(--mono-text);
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .links-page .social-links {
