@@ -456,7 +456,7 @@ body:not(.index-page) .menu-button {
 }
 
 .links-soon {
-    font-size: clamp(6rem, 18vw, 12rem);
+    font-size: clamp(10rem, 30vw, 22rem);
     font-weight: 700;
     line-height: 0.95;
     letter-spacing: 0.06em;
