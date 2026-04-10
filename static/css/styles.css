@@ -429,17 +429,21 @@ body:not(.index-page) .menu-button {
 }
 
 /* Links Page */
+.links-page {
+    min-height: 100vh;
+}
+
 .links-container {
-    padding: 5rem 4rem 4rem;
-    max-width: 1200px;
-    margin: 0 auto;
+    min-height: 100vh;
+    width: 100%;
+    padding: 5.5rem 1.5rem 1.5rem;
+    max-width: none;
+    margin: 0;
     text-align: center;
     position: relative;
     z-index: 1;
-    min-height: calc(100vh - 5rem);
     display: flex;
-    align-items: center;
-    justify-content: center;
+    flex-direction: column;
 }
 
 .links-title {
@@ -447,15 +451,24 @@ body:not(.index-page) .menu-button {
     font-weight: normal;
     color: #666;
     letter-spacing: 2px;
-    margin-bottom: 4rem;
-    padding-top: 2rem;
+    margin-bottom: 0;
+    padding-top: 1rem;
 }
 
 .links-soon {
-    font-size: clamp(3rem, 9vw, 7rem);
-    font-weight: 600;
-    letter-spacing: 0.04em;
+    font-size: clamp(4rem, 13vw, 9rem);
+    font-weight: 700;
+    line-height: 0.95;
+    letter-spacing: 0.06em;
     color: #111;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.links-page .social-links {
+    display: none;
 }
 
 .links-grid {
