@@ -428,6 +428,14 @@ body:not(.index-page) .menu-button {
     margin-bottom: 0.2rem;
 }
 
+.satire-disclaimer {
+    margin-top: 1.75rem;
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #8a8a8a;
+}
+
 /* Links Page */
 .links-page {
     min-height: 100vh;
@@ -1007,6 +1015,10 @@ body:not(.index-page) .menu-button {
     .enemies-list {
         font-size: 1rem;
         line-height: 1.75;
+    }
+
+    .satire-disclaimer {
+        font-size: 0.72rem;
     }
 
 }
