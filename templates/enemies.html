@@ -1,8 +1,12 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="enemies-container">
-    <div class="enemies-list-wrap">
-        <h1>ENEMIES</h1>
+<section class="enemies-page">
+    <div class="enemies-shell">
+        <div class="enemies-watermark" aria-hidden="true">ENEMIES</div>
+
+        <p class="enemies-label">The List</p>
+        <h1 class="enemies-title">Enemies</h1>
+
         <ol class="enemies-list">
             <li value="1"><s>Bryson Tiller</s></li>
             <li value="2">DJ Envy</li>
@@ -20,11 +24,27 @@
             <li value="15">Bryson Tiller's Assistant</li>
             <li value="16">Russell Westbrook</li>
         </ol>
+
         <p class="satire-disclaimer">
-            <a href="https://youtu.be/txTkSrxpHYI?si=TUFg-IGkaOxPk7Gg" target="_blank" rel="noopener noreferrer">
-                This is, of course, a joke, and it is for satirical purposes.
-            </a>
+            This is, of course, a joke, and it is for satirical purposes.
         </p>
+
+        <div class="enemies-actions">
+            <a
+                class="enemies-button enemies-button-primary"
+                href="https://youtu.be/txTkSrxpHYI?si=TUFg-IGkaOxPk7Gg"
+                target="_blank"
+                rel="noopener noreferrer">
+                Sheldon's List
+            </a>
+            <a
+                class="enemies-button enemies-button-secondary"
+                href="https://www.youtube.com/watch?v=z6CZvEgKr0E"
+                target="_blank"
+                rel="noopener noreferrer">
+                Sheldon's List, Pt. II
+            </a>
+        </div>
     </div>
 </section>
 {% endblock %}

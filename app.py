@@ -173,8 +173,8 @@ def links():
     title = get_site_title()
     return render_template('links.html', title=title, links=load_private_links())
 
-@app.route('/essentials')
-def essentials():
+@app.route('/audio')
+def audio():
     title = 'MARC SHAW'
     return render_template('essentials.html', title=title)
 

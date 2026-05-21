@@ -392,26 +392,48 @@ body:not(.index-page) .menu-button {
 }
 
 /* Enemies Page */
-.enemies-container {
+.enemies-page {
     min-height: 100vh;
-    padding: 8.5rem 1rem 6rem;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    padding: 4.75rem clamp(0.9rem, 3vw, 1.5rem) 4rem;
+    background: var(--mono-bg);
 }
 
-.enemies-list-wrap {
-    width: fit-content;
-    max-width: 560px;
-    text-align: left;
+.enemies-shell {
+    position: relative;
+    z-index: 1;
+    width: min(640px, 100%);
+    margin: 0 auto;
 }
 
-.enemies-list-wrap h1 {
-    font-size: 2.4rem;
-    letter-spacing: 2px;
-    color: #4b4b4b;
-    margin-bottom: 1.5rem;
-    margin-left: -1ch;
+.enemies-watermark {
+    position: absolute;
+    left: 50%;
+    top: -0.3rem;
+    transform: translateX(-50%);
+    font-size: clamp(4.5rem, 15vw, 11rem);
+    letter-spacing: 0.08em;
+    color: var(--mono-surface);
+    white-space: nowrap;
+    pointer-events: none;
+    user-select: none;
+    z-index: -1;
+}
+
+.enemies-label {
+    font-size: 0.75rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--mono-muted);
+    margin-bottom: 1rem;
+}
+
+.enemies-title {
+    font-size: clamp(3rem, 8vw, 5.5rem);
+    line-height: 0.9;
+    font-weight: 200;
+    letter-spacing: -0.03em;
+    color: var(--mono-text);
+    margin-bottom: 1.75rem;
 }
 
 .enemies-list {
@@ -421,11 +443,15 @@ body:not(.index-page) .menu-button {
     list-style-position: inside;
     line-height: 1.9;
     font-size: 1.08rem;
-    color: #5a5a5a;
+    color: var(--mono-text);
 }
 
 .enemies-list li {
     margin-bottom: 0.2rem;
+}
+
+.enemies-list s {
+    color: var(--mono-muted);
 }
 
 .satire-disclaimer {
@@ -433,16 +459,43 @@ body:not(.index-page) .menu-button {
     font-size: 0.72rem;
     font-style: italic;
     line-height: 1.4;
-    color: #8a8a8a;
+    color: var(--mono-muted);
 }
 
-.satire-disclaimer a {
-    color: inherit;
+.enemies-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.85rem;
+    margin-top: 1.5rem;
+}
+
+.enemies-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 46px;
+    padding: 0.85rem 1.2rem;
     text-decoration: none;
+    font-size: 0.76rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    transition: opacity 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
 }
 
-.satire-disclaimer a:hover {
-    text-decoration: underline;
+.enemies-button:hover {
+    transform: translateY(-1px);
+    opacity: 0.75;
+}
+
+.enemies-button-primary {
+    background: var(--mono-text);
+    color: #ffffff;
+    border: 1px solid var(--mono-text);
+}
+
+.enemies-button-secondary {
+    border: 1px solid #dddddd;
+    color: var(--mono-text);
 }
 
 /* Links Page */
@@ -555,7 +608,7 @@ body:not(.index-page) .menu-button {
 
 .essentials-grid {
     display: grid;
-    grid-template-columns: minmax(0, 0.92fr) minmax(280px, 42vw);
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 440px);
     gap: clamp(1.4rem, 4vw, 3rem);
     align-items: start;
     min-height: auto;
@@ -1012,13 +1065,12 @@ body:not(.index-page) .menu-button {
         font-size: 1.25rem;
     }
 
-    .enemies-container {
-        padding: 7.2rem 1rem 4.75rem;
-        align-items: flex-start;
+    .enemies-page {
+        padding: 4rem 1rem 3.5rem;
     }
 
-    .enemies-list-wrap h1 {
-        font-size: 1.95rem;
+    .enemies-title {
+        font-size: clamp(2.6rem, 12vw, 3.4rem);
     }
 
     .enemies-list {
