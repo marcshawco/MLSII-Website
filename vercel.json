@@ -38,6 +38,10 @@
             "dest": "/_vercel/speed-insights/$1"
         },
         {
+            "src": "/_vercel/insights/(.*)",
+            "dest": "/_vercel/insights/$1"
+        },
+        {
             "src": "/(.*)",
             "dest": "app.py"
         }
