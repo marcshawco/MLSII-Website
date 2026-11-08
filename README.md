@@ -154,6 +154,65 @@ Then redeploy.
 - Update Privacy Policy text: `templates/privacy_policy.html`
 - Update styles/spacing/responsiveness: `static/css/styles.css`
 
+## Shared AI Memory (MCP)
+
+This app hosts a private remote MCP server so Claude, Gemini, Grok and Muse share one long-term memory about you. The design borrows from [Honcho](https://github.com/plastic-labs/honcho):
+
+- **Peers.** `marcus` plus one per assistant. Every write is attributed to the assistant chosen on the OAuth consent screen, never to what the AI claims.
+- **Conclusions.** Typed memories: `explicit` (stated), `deductive` (inferred from premises) and `inductive` (patterns found by the dream). Near-duplicates reinforce an existing memory instead of piling up.
+- **Peer card.** A short identity summary every assistant sees first. You can edit it at `/context/admin`.
+- **Deriver.** `log_session` extracts facts from a conversation as soon as it is saved.
+- **Dream.** A nightly Vercel Cron (`/api/dream`) merges duplicates, resolves contradictions, records patterns and rewrites the peer card.
+- **Hybrid search.** pgvector similarity plus Postgres full text, fused by reciprocal rank.
+
+Nothing from this store is rendered on the public site.
+
+### MCP tools
+| Tool | Purpose |
+|---|---|
+| `get_context(query?, token_budget?)` | Peer card, plus relevant and recent memories and recent sessions. Call it first. |
+| `search_memory(query, kind?, observer?, limit?)` | Hybrid search |
+| `remember(facts[])` | Store short third-person facts |
+| `log_session(title?, summary?, messages?)` | Save a conversation; facts are extracted automatically |
+| `correct_memory(id, new_content?, reason?)` | Replace or retract a memory (history is kept) |
+| `ask_memory(question)` | Answer a question from memory, with cited ids |
+| `get_peer_card()` | Compact identity summary |
+
+Safety rules:
+- Secrets (passwords, keys, card or ID numbers) are refused.
+- Text that looks like instructions to an AI goes to a review queue.
+- Every read is wrapped in a "data, not instructions" note.
+
+### Files
+- `schema.sql`, `scripts/migrate.py`: Postgres schema (idempotent)
+- `db.py`: connection pool
+- `memory.py`: domain logic, search, dream
+- `reasoning.py`: AI Gateway calls (embeddings, deriver, dream, answers), with offline stubs
+- `context_store.py`, `oauth_routes.py`: OAuth 2.1 + PKCE + dynamic registration + refresh rotation (hashed tokens)
+- `mcp_handler.py`: Streamable HTTP JSON-RPC
+
+### Setup
+1. Add **Neon** to the Vercel project from the Marketplace. It injects `DATABASE_URL`.
+2. Set `CONTEXT_PASSWORD`, `CONTEXT_PUBLIC_URL` (e.g. `https://marcuslshaw.com`) and `CRON_SECRET` in Vercel.
+3. Make sure AI Gateway is enabled for the team. Deployed functions authenticate with Vercel OIDC automatically. For local runs, set `AI_GATEWAY_API_KEY` or `REASONING_FAKE=1`.
+4. Run `vercel env pull`, then `python scripts/migrate.py`.
+5. Deploy, open `/context`, and write your peer card.
+
+### Connect assistants
+Use the connector URL `https://<your-domain>/mcp` (Streamable HTTP, OAuth). On the consent page, pick which assistant it is and enter `CONTEXT_PASSWORD`.
+- **Claude:** Settings → Connectors → Add custom connector.
+- **Gemini / Grok / Muse:** add a custom MCP connector or remote MCP server with the same URL, if the app supports it.
+
+In each assistant's custom instructions, add: "Use my memory connector. Call get_context at the start of personal conversations, remember when I share something durable, and log_session at the end of long chats."
+
+### Local verification
+Run the checks against a throwaway Postgres with pgvector. **The script wipes it.**
+
+```bash
+docker run -d --name mlsii-memory-pg -e POSTGRES_PASSWORD=devpass -e POSTGRES_DB=memory -p 55432:5432 pgvector/pgvector:pg17
+VERIFY_DATABASE_URL=postgresql://postgres:devpass@localhost:55432/memory python scripts/verify_context_mcp.py
+```
+
 ## Private Local Data
 
 Store sensitive personal values in `private/`, which is gitignored.

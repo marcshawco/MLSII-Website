@@ -20,7 +20,8 @@ Werkzeug==3.1.8
 yarl==1.18.0
 requests==2.33.1
 asgiref==3.7.2
-redis
+psycopg[binary,pool]>=3.2,<4
+openai>=1.50,<3
 cachetools
 certifi>=2023.7.22
 charset-normalizer>=3.3.2
