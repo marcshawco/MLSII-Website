@@ -165,6 +165,58 @@
             </div>
         </form>
 
+        <h2>IMPORT HISTORY</h2>
+        <div id="import-root" data-csrf="{{ csrf }}">
+            <p class="hint">
+                Upload a chat export: ChatGPT (Settings → Data controls → Export), Claude (Settings → Privacy → Export data),
+                Grok (Settings → Data → Download), Gemini (Google Takeout → My Activity → Gemini Apps, JSON format), or any
+                .json/.txt/.md file. The file is read in your browser and nothing is sent until you press Upload.
+                Facts are extracted in the background, oldest first, and each chat's raw text is deleted once it's processed.
+            </p>
+            <input id="import-file" type="file" accept=".zip,.json,.txt,.md,.markdown,.html,.htm" multiple>
+            <p id="import-preview" class="hint" style="margin-top:0.5rem"></p>
+            <div class="filter-row">
+                <label for="import-source" style="margin:0">From</label>
+                <select id="import-source">
+                    <option value="">choose…</option>
+                    <option value="marcus">Me (notes about myself)</option>
+                    {% for a in assistants %}<option value="{{ a.id }}">{{ a.display_name }}</option>{% endfor %}
+                </select>
+                <button id="import-upload" type="button" disabled>Upload</button>
+                <button id="import-process" type="button" class="ghost">Process now</button>
+            </div>
+            <label for="import-paste">Or paste anything about yourself (bio, résumé, notes)</label>
+            <textarea id="import-paste" placeholder="I grew up in…"></textarea>
+            <div class="context-actions"><button id="import-paste-btn" type="button" class="ghost">Add note</button></div>
+            <p id="import-log" class="context-flash" style="margin-top:1rem;min-height:1em"></p>
+            <div id="import-status">
+                {% if imports.batches %}
+                {% for b in imports.batches %}
+                <div class="memory-meta">{{ b.source_peer }} · {{ b.filename or 'upload' }} · {{ b.done }}/{{ b.total }} done{% if b.queued %}, {{ b.queued }} waiting{% endif %}{% if b.failed %}, {{ b.failed }} failed{% endif %}{% if b.skipped %}, {{ b.skipped }} skipped{% endif %} · {{ b.facts }} facts{% if b.oldest %} · {{ b.oldest.strftime('%Y-%m-%d') }} → {{ b.newest.strftime('%Y-%m-%d') }}{% endif %}</div>
+                {% endfor %}
+                {% if imports.last_error and imports.queued %}<div class="note">Last error: {{ imports.last_error.last_error[:200] }}</div>{% endif %}
+                {% else %}<p class="hint">No imports yet.</p>{% endif %}
+            </div>
+            {% if imports.batches %}
+            <div class="filter-row">
+                <form method="post" action="{{ url_for('context_admin') }}">
+                    {{ csrf_field() }}
+                    <input type="hidden" name="action" value="retry_imports">
+                    <button type="submit" class="ghost">Retry failed</button>
+                </form>
+                <form method="post" action="{{ url_for('context_admin') }}" class="filter-row"
+                      onsubmit="return confirm('Stop this import? Conversations not yet processed are dropped.');">
+                    {{ csrf_field() }}
+                    <input type="hidden" name="action" value="cancel_import">
+                    <select name="batch_id">{% for b in imports.batches if b.queued or b.failed %}<option value="{{ b.id }}">{{ b.source_peer }} · {{ b.filename or 'upload' }}</option>{% endfor %}</select>
+                    <button type="submit" class="ghost">Stop import</button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha512-XMVd28F1oH/O71fzwBnV7HucLxVwtxf26XV8P4wPk26EDxuGZ91N8bsOttmnomcCD3CS5ZMRL50H0GgOHvegtg==" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
+        <script src="{{ url_for('static', filename='js/memory_import.js', v='20261108c') }}" defer></script>
+
         <h2>NEEDS REVIEW ({{ pending|length }})</h2>
         {% if pending %}
         <ul class="memory-list">
@@ -278,9 +330,16 @@
               onsubmit="return confirm('Disconnect this assistant? It will need to sign in again.');">
             {{ csrf_field() }}
             <input type="hidden" name="action" value="revoke_peer">
-            <select name="peer">{% for a in assistants %}<option value="{{ a }}">{{ a }}</option>{% endfor %}</select>
+            <select name="peer">{% for a in assistants %}<option value="{{ a.id }}">{{ a.display_name }}</option>{% endfor %}</select>
             <button type="submit" class="ghost">Disconnect</button>
         </form>
+        <form method="post" action="{{ url_for('context_admin') }}" class="filter-row">
+            {{ csrf_field() }}
+            <input type="hidden" name="action" value="add_assistant">
+            <input type="text" name="name" placeholder="New assistant, e.g. Perplexity" style="max-width:260px" required>
+            <button type="submit" class="ghost">Add assistant</button>
+        </form>
+        <p class="hint">Assistants: {% for a in assistants %}{{ a.display_name }}{{ ', ' if not loop.last }}{% endfor %}. Add a new one before connecting it, so its memories are credited to it.</p>
 
         <h2>DREAM</h2>
         <p class="hint">
@@ -294,6 +353,26 @@
             {{ csrf_field() }}
             <input type="hidden" name="action" value="run_dream">
             <button type="submit" class="ghost">Run dream now</button>
+        </form>
+
+        <h2>PRIVACY &amp; YOUR DATA</h2>
+        <p class="hint">
+            Stored in your own Neon Postgres database. Only this page (your password) and assistants you approved can read it.
+            AI steps run through Vercel AI Gateway with
+            {% if ai.privacy == 'zdr' %}<strong>zero data retention and no prompt training</strong>
+            {% elif ai.privacy == 'no_training' %}<strong>no prompt training</strong> (zero data retention needs paid AI Gateway credits; then set MEMORY_PRIVACY=zdr)
+            {% else %}<strong>no privacy routing</strong>{% endif %}.
+            Models: {{ ai.fast }} (facts), {{ ai.dream }} (dream), {{ ai.embed }} (search).
+        </p>
+        <div class="filter-row">
+            <a class="ghost" href="{{ url_for('context_export') }}">Download everything (JSON)</a>
+        </div>
+        <form method="post" action="{{ url_for('context_admin') }}" class="filter-row"
+              onsubmit="return confirm('Permanently erase ALL memories, sessions, imports and the peer card? This cannot be undone.');">
+            {{ csrf_field() }}
+            <input type="hidden" name="action" value="erase_all">
+            <input type="text" name="confirm" placeholder="Type {{ erase_phrase }}" style="max-width:260px" autocomplete="off">
+            <button type="submit" class="ghost">Erase everything</button>
         </form>
     </main>
 </body>

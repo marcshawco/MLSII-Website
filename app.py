@@ -4,7 +4,7 @@ import json
 import os
 import secrets
 import time
-from datetime import timedelta
+from datetime import datetime, timedelta
 from urllib.parse import quote
 
 import requests
@@ -70,6 +70,12 @@ NO_STORE_ENDPOINTS = frozenset({
     'context_admin',
     'context_logout',
     'dream_endpoint',
+    'import_step_endpoint',
+    'context_import_start',
+    'context_import_items',
+    'context_import_step',
+    'context_import_status',
+    'context_export',
 })
 
 # Warm lambda instances can reuse this to avoid re-fetching Bunny on every request.
@@ -375,7 +381,7 @@ def oauth_authorize():
         scope=scope,
         code_challenge=code_challenge,
         code_challenge_method=code_challenge_method,
-        peers=memory.ASSISTANT_PEERS,
+        peers=memory.list_assistants(),
         selected_peer=selected_peer,
     )
 
@@ -385,7 +391,7 @@ def oauth_authorize():
 
     if request.method == 'POST' and not error:
         ok, error = _password_ok(request.form.get('password') or '')
-        if ok and selected_peer not in memory.ASSISTANT_PEERS:
+        if ok and selected_peer not in memory.assistant_peers():
             ok, error = False, 'Choose which assistant this connection is for.'
         if ok:
             code = context_store.create_auth_code(
@@ -567,12 +573,22 @@ def _admin_action(form):
         return 'Deleted permanently.' if memory.delete_conclusion(memory_id) else 'Memory not found.'
     if action == 'revoke_peer':
         peer = (form.get('peer') or '').strip()
-        if peer not in memory.ASSISTANT_PEERS:
+        if peer not in memory.assistant_peers():
             return 'Unknown assistant.'
         return f'Revoked {context_store.revoke_peer_tokens(peer)} token(s) for {peer}.'
     if action == 'run_dream':
         result = memory.run_dream()
         return f'Dream finished: {json.dumps(result["stats"])}'
+    if action == 'add_assistant':
+        peer = memory.add_assistant(form.get('name') or '')
+        return f'Added assistant "{peer}". Pick it on the consent page when you connect that app.'
+    if action == 'cancel_import':
+        return f'Stopped: {memory.cancel_import(form.get("batch_id") or "")} unprocessed conversation(s) dropped.'
+    if action == 'retry_imports':
+        return f'Re-queued {memory.retry_failed_imports()} failed conversation(s).'
+    if action == 'erase_all':
+        memory.erase_all(form.get('confirm') or '')
+        return 'Everything was erased. Connections were kept; disconnect them below if you want.'
     return 'Unknown action.'
 
 
@@ -610,12 +626,105 @@ def context_admin():
         filters={'status': status, 'kind': kind or '', 'observer': observer or ''},
         statuses=memory.STATUSES,
         kinds=memory.KINDS,
-        observers=list(memory.WRITER_PEERS) + ['dreamer'],
+        observers=memory.writer_peers() + [memory.SYSTEM_PEER],
         connections=context_store.list_connections(),
-        assistants=memory.ASSISTANT_PEERS,
+        assistants=memory.list_assistants(),
         sessions=memory.recent_sessions(10),
         dream=memory.latest_dream(),
+        imports=memory.import_status(),
+        erase_phrase=memory.ERASE_CONFIRMATION,
+        ai={
+            'privacy': reasoning.privacy_mode(),
+            'fast': reasoning.fast_model(),
+            'dream': reasoning.dream_model(),
+            'embed': reasoning.embed_model(),
+        },
     )
+
+
+def _admin_json_guard():
+    """JSON admin calls: must be logged in and send the CSRF token in X-CSRF-Token."""
+    missing = _require_context_config()
+    if missing:
+        return missing
+    if not _context_unlocked():
+        return _json_no_store({'error': 'Log in at /context first.'}, 401)
+    token = request.headers.get('X-CSRF-Token') or ''
+    if request.method != 'GET' and (not session.get('csrf') or not hmac.compare_digest(token, session['csrf'])):
+        return _json_no_store({'error': 'Session expired; reload the page.'}, 403)
+    return None
+
+
+@app.route('/context/admin/import/start', methods=['POST'])
+def context_import_start():
+    blocked = _admin_json_guard()
+    if blocked:
+        return blocked
+    data = request.get_json(silent=True) or {}
+    try:
+        batch_id = memory.create_import_batch(str(data.get('source_peer') or ''), str(data.get('filename') or ''))
+    except ValueError as exc:
+        return _json_no_store({'error': str(exc)}, 400)
+    return _json_no_store({'batch_id': batch_id})
+
+
+@app.route('/context/admin/import/items', methods=['POST'])
+def context_import_items():
+    blocked = _admin_json_guard()
+    if blocked:
+        return blocked
+    if request.content_length and request.content_length > 4_000_000:
+        return _json_no_store({'error': 'Upload chunk too large (max 4 MB).'}, 413)
+    data = request.get_json(silent=True) or {}
+    try:
+        result = memory.add_import_items(str(data.get('batch_id') or ''), data.get('items'))
+    except ValueError as exc:
+        return _json_no_store({'error': str(exc)}, 400)
+    return _json_no_store(result)
+
+
+@app.route('/context/admin/import/step', methods=['POST'])
+def context_import_step():
+    blocked = _admin_json_guard()
+    if blocked:
+        return blocked
+    return _json_no_store(memory.run_import_step(time_budget_s=40.0))
+
+
+@app.route('/context/admin/import/status', methods=['GET'])
+def context_import_status():
+    blocked = _admin_json_guard()
+    if blocked:
+        return blocked
+    status = memory.import_status()
+    return Response(json.dumps(status, default=str), mimetype='application/json',
+                    headers={'Cache-Control': 'no-store'})
+
+
+@app.route('/context/admin/export', methods=['GET'])
+def context_export():
+    blocked = _admin_json_guard()
+    if blocked:
+        return blocked
+    body = json.dumps(memory.export_all(), default=str, indent=1)
+    stamp = datetime.utcnow().strftime('%Y-%m-%d')
+    return Response(body, mimetype='application/json', headers={
+        'Content-Disposition': f'attachment; filename="marcus-memory-{stamp}.json"',
+        'Cache-Control': 'no-store',
+    })
+
+
+@app.route('/api/import-step', methods=['GET', 'POST'])
+def import_step_endpoint():
+    """Background history import, triggered by cron (Authorization: Bearer $CRON_SECRET)."""
+    secret = (os.environ.get('CRON_SECRET') or '').strip()
+    auth = request.headers.get('Authorization', '')
+    if not secret or not hmac.compare_digest(auth, f'Bearer {secret}'):
+        return _json_no_store({'error': 'unauthorized'}, 401)
+    if not db.configured():
+        return _json_no_store({'error': 'DATABASE_URL is not configured.'}, 503)
+    budget = 240.0 if request.headers.get('User-Agent', '').startswith('vercel-cron') else 120.0
+    return _json_no_store(memory.run_import_step(time_budget_s=budget))
 
 
 @app.route('/context/logout', methods=['GET', 'POST'])

@@ -156,7 +156,7 @@ Then redeploy.
 
 ## Shared AI Memory (MCP)
 
-This app hosts a private remote MCP server so Claude, Gemini, Grok and Muse share one long-term memory about you. The design borrows from [Honcho](https://github.com/plastic-labs/honcho):
+This app hosts a private remote MCP server so Claude, ChatGPT, Gemini, Grok, Muse (and any assistant you add) share one long-term memory about you. The design borrows from [Honcho](https://github.com/plastic-labs/honcho):
 
 - **Peers.** `marcus` plus one per assistant. Every write is attributed to the assistant chosen on the OAuth consent screen, never to what the AI claims.
 - **Conclusions.** Typed memories: `explicit` (stated), `deductive` (inferred from premises) and `inductive` (patterns found by the dream). Near-duplicates reinforce an existing memory instead of piling up.
@@ -164,6 +164,7 @@ This app hosts a private remote MCP server so Claude, Gemini, Grok and Muse shar
 - **Deriver.** `log_session` extracts facts from a conversation as soon as it is saved.
 - **Dream.** A nightly Vercel Cron (`/api/dream`) merges duplicates, resolves contradictions, records patterns and rewrites the peer card.
 - **Hybrid search.** pgvector similarity plus Postgres full text, fused by reciprocal rank.
+- **History import.** Upload chat exports at `/context/admin`; facts are extracted in the background, oldest first, dated, and the raw chat text is deleted once processed.
 
 Nothing from this store is rendered on the public site.
 
@@ -178,7 +179,10 @@ Nothing from this store is rendered on the public site.
 | `ask_memory(question)` | Answer a question from memory, with cited ids |
 | `get_peer_card()` | Compact identity summary |
 
-Safety rules:
+Safety and privacy:
+- AI steps go through Vercel AI Gateway with `disallowPromptTraining` on every request (`MEMORY_PRIVACY=no_training`). With paid AI Gateway credits, set `MEMORY_PRIVACY=zdr` to also require zero data retention. Requests fail rather than downgrade.
+- Imported chats are kept only until their facts are extracted, then the text is wiped.
+- `/context/admin` can download everything as JSON and erase everything.
 - Secrets (passwords, keys, card or ID numbers) are refused.
 - Text that looks like instructions to an AI goes to a review queue.
 - Every read is wrapped in a "data, not instructions" note.
@@ -192,16 +196,24 @@ Safety rules:
 - `mcp_handler.py`: Streamable HTTP JSON-RPC
 
 ### Setup
-1. Add **Neon** to the Vercel project from the Marketplace. It injects `DATABASE_URL`.
-2. Set `CONTEXT_PASSWORD`, `CONTEXT_PUBLIC_URL` (e.g. `https://marcuslshaw.com`) and `CRON_SECRET` in Vercel.
+1. Add **Neon** to the Vercel project from the Marketplace. It injects `DATABASE_URL`. Use a dedicated Neon resource; don't share one with another app.
+2. Set `CONTEXT_PASSWORD`, `CONTEXT_PUBLIC_URL` (e.g. `https://www.marcshaw.co`) and `CRON_SECRET` in Vercel.
 3. Make sure AI Gateway is enabled for the team. Deployed functions authenticate with Vercel OIDC automatically. For local runs, set `AI_GATEWAY_API_KEY` or `REASONING_FAKE=1`.
 4. Run `vercel env pull`, then `python scripts/migrate.py`.
 5. Deploy, open `/context`, and write your peer card.
+6. Add the same cron secret as the GitHub repository secret `MEMORY_CRON_SECRET`. Vercel Hobby crons run once a day, so `.github/workflows/memory-worker.yml` nudges the import every 30 minutes and the dream every 6 hours.
+
+### Importing your history
+1. Export your chats: ChatGPT (Settings → Data controls → Export data), Claude (Settings → Privacy → Export data), Grok (Settings → Data → Download), Gemini (Google Takeout → My Activity → Gemini Apps, JSON format). Other apps: any `.json`, `.txt` or `.md` file.
+2. At `/context/admin` → Import history, pick the `.zip` or `conversations.json`, check the detected source, and Upload. You can close the page afterwards.
+3. Processing runs in the background. **Process now** speeds it up while the page is open. On the AI Gateway free tier ($5 of credits per 30 days, rate limited) a large history can take days or weeks. When credits or rate limits run out, the import pauses and resumes automatically.
+4. Re-uploading the same export skips conversations already imported.
 
 ### Connect assistants
-Use the connector URL `https://<your-domain>/mcp` (Streamable HTTP, OAuth). On the consent page, pick which assistant it is and enter `CONTEXT_PASSWORD`.
+Use the connector URL `https://<your-domain>/mcp` (Streamable HTTP, OAuth). On the consent page, pick which assistant it is and enter `CONTEXT_PASSWORD`. For an app that isn't listed (ChatGPT is included), add it first under Connected assistants at `/context/admin`.
 - **Claude:** Settings → Connectors → Add custom connector.
 - **Muse (Meta, muse.ai):** Settings → Connectors → Add custom connector, then paste the URL. If that button is missing in your app version, ask Muse in chat to create a custom connector named "Shared Memory" with transport remote streamable HTTP, auth OAuth, and the URL above. Muse connects from Meta's cloud, so use the public HTTPS domain (localhost won't work). Access tokens last 30 days, so Muse's reported lack of refresh-token support only means signing in again about once a month.
+- **ChatGPT:** Settings → Apps & Connectors → developer mode → add a custom connector with the same URL, where your plan supports it.
 - **Gemini / Grok:** add a custom MCP connector or remote MCP server with the same URL, if the app supports it.
 
 In each assistant's custom instructions, add: "Use my memory connector. Call get_context at the start of personal conversations, remember when I share something durable, and log_session at the end of long chats."

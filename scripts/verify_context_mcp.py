@@ -56,7 +56,11 @@ def reset_db():
     db.apply_schema()
     db.execute(
         'TRUNCATE conclusions, messages, sessions, peer_cards, peer_card_history, jobs, dream_runs, '
-        'oauth_tokens, oauth_codes, oauth_clients, auth_failures RESTART IDENTITY CASCADE'
+        'oauth_tokens, oauth_codes, oauth_clients, auth_failures, import_items, import_batches '
+        'RESTART IDENTITY CASCADE'
+    )
+    db.execute(
+        "DELETE FROM peers WHERE id NOT IN ('marcus', 'claude', 'gemini', 'grok', 'muse', 'chatgpt', 'dreamer')"
     )
 
 
@@ -249,6 +253,78 @@ def main() -> int:
     assert b'Revoked' in revoked.data
     assert client.post('/mcp', headers={'Authorization': f'Bearer {gemini_tokens["access_token"]}'},
                        json={'jsonrpc': '2.0', 'id': 1, 'method': 'ping'}).status_code == 401
+
+    # Assistants can be added and then picked on the consent screen
+    import memory  # noqa: E402
+
+    added = client.post('/context/admin', data={'action': 'add_assistant', 'name': 'Perplexity', 'csrf': csrf})
+    assert b'Added assistant' in added.data and 'perplexity' in memory.assistant_peers()
+    assert b'reserved' in client.post('/context/admin', data={'action': 'add_assistant', 'name': 'Dreamer',
+                                                              'csrf': csrf}).data
+    _pid, perplexity_tokens = connect(client, 'perplexity', client_name='Perplexity')
+    pplx = Mcp(client, perplexity_tokens['access_token'])
+    assert pplx.tool('remember', facts=['Marcus uses Perplexity for research.'])['stored'][0]['result'] == 'created'
+    assert any(m['observer'] == 'perplexity' for m in pplx.tool('search_memory', query='Perplexity research')['matches'])
+
+    # Duplicate rule: names/numbers must match unless near-identical
+    assert not memory._is_duplicate('Marcus drives a Tesla Model 3', 'Marcus drives a Tesla Model Y', 0.96)
+    assert memory._is_duplicate('Marcus lives in LA', 'Marcus lives in LA now', 0.96)
+    assert memory._is_duplicate('Marcus lives in Los Angeles', 'Marcus lives in LA', 0.98)
+    assert len(memory._chunks('x' * 100 + '\n' + ('y' * 1000 + '\n') * 400)) <= memory.IMPORT_MAX_CHUNKS
+
+    # History import: CSRF required, dedupe on re-upload, oldest first, raw text wiped, facts dated
+    hdr = {'X-CSRF-Token': csrf}
+    assert client.post('/context/admin/import/start', json={'source_peer': 'chatgpt'}).status_code == 403
+    assert client.post('/context/admin/import/start', json={'source_peer': 'nobody'}, headers=hdr).status_code == 400
+    batch = client.post('/context/admin/import/start', json={'source_peer': 'chatgpt', 'filename': 'conversations.json'},
+                        headers=hdr).get_json()['batch_id']
+    convos = [
+        {'id': 'chatgpt:new', 'title': 'Moving', 'at': 1717200000,
+         'transcript': 'user: I moved to Denver for a new job at Acme Robotics.\nassistant: Congrats!'},
+        {'id': 'chatgpt:old', 'title': 'School', 'at': '2021-03-04T10:00:00Z',
+         'transcript': 'user: I am studying finance at Boston University.\nassistant: Nice.'},
+        {'id': '', 'transcript': 'user: no id'},
+    ]
+    first = client.post('/context/admin/import/items', json={'batch_id': batch, 'items': convos}, headers=hdr).get_json()
+    assert first == {'added': 2, 'already_imported': 0, 'rejected': 1}, first
+    again = client.post('/context/admin/import/items', json={'batch_id': batch, 'items': convos[:2]}, headers=hdr).get_json()
+    assert again['added'] == 0 and again['already_imported'] == 2
+    order = db.fetch_all("SELECT external_id FROM import_items ORDER BY happened_at NULLS LAST, id")
+    assert [r['external_id'] for r in order] == ['chatgpt:old', 'chatgpt:new']
+    assert client.post('/api/import-step').status_code == 401
+    step = client.post('/api/import-step', headers={'Authorization': f'Bearer {os.environ["CRON_SECRET"]}'}).get_json()
+    assert step['processed'] == 2 and step['remaining'] == 0 and step['facts'] >= 2, step
+    assert db.fetch_one("SELECT count(*) AS n FROM import_items WHERE transcript <> ''")['n'] == 0
+    boston = db.fetch_one("SELECT observer_peer, created_at FROM conclusions WHERE content ILIKE '%%Boston%%'")
+    assert boston and boston['observer_peer'] == 'chatgpt' and boston['created_at'].year == 2021, boston
+    status = client.get('/context/admin/import/status').get_json()
+    assert status['batches'][0]['done'] == 2 and status['queued'] == 0
+    note_batch = client.post('/context/admin/import/start', json={'source_peer': 'marcus', 'filename': 'note'},
+                             headers=hdr).get_json()['batch_id']
+    client.post('/context/admin/import/items', headers=hdr, json={'batch_id': note_batch, 'items': [
+        {'id': 'text:note:0', 'title': 'note', 'transcript': 'marcus: I grew up in Oakland, California.'}]})
+    assert client.post('/context/admin/import/step', headers=hdr).get_json()['processed'] == 1
+    assert any('Oakland' in m['content'] for m in pplx.tool('search_memory', query='Oakland').get('matches', [])) \
+        or db.fetch_one("SELECT 1 FROM conclusions WHERE content ILIKE '%%Oakland%%' AND observer_peer = 'marcus'")
+    assert b'IMPORT HISTORY' in client.get('/context/admin').data
+
+    # Dream works in rotation once the store is larger than one window
+    memory.DREAM_MAX_MEMORIES, saved_max = 4, memory.DREAM_MAX_MEMORIES
+    memory.run_dream()
+    memory.DREAM_MAX_MEMORIES = saved_max
+    assert db.fetch_one('SELECT count(*) AS n FROM conclusions WHERE last_dreamed_at IS NOT NULL')['n'] >= 1
+
+    # Export everything, then erase (connections survive)
+    export = client.get('/context/admin/export')
+    assert export.status_code == 200 and 'attachment' in export.headers['Content-Disposition']
+    dump = json.loads(export.data)
+    assert dump['conclusions'] and 'embedding' not in dump['conclusions'][0] and 'import_items' not in dump
+    wrong = client.post('/context/admin', data={'action': 'erase_all', 'confirm': 'yes', 'csrf': csrf})
+    assert b'exactly to confirm' in wrong.data
+    assert db.fetch_one('SELECT count(*) AS n FROM conclusions')['n'] > 0
+    client.post('/context/admin', data={'action': 'erase_all', 'confirm': memory.ERASE_CONFIRMATION, 'csrf': csrf})
+    assert db.fetch_one('SELECT count(*) AS n FROM conclusions')['n'] == 0
+    assert pplx.tool('get_context')['stats']['active_memories'] == 0
 
     # Lockout after repeated failures
     for _ in range(10):

@@ -17,7 +17,7 @@ DEFAULT_PROTOCOL_VERSION = '2025-06-18'
 
 SERVER_INSTRUCTIONS = (
     "Shared long-term memory about Marcus Shaw, used by all of his AI assistants "
-    "(Claude, Gemini, Grok, Muse). What one assistant learns, the others can recall.\n"
+    "(Claude, ChatGPT, Gemini, Grok, Muse and others). What one assistant learns, the others can recall.\n"
     "- When personal context would help (his preferences, projects, people, history), call "
     "get_context first and pass the topic as `query`.\n"
     "- When Marcus shares something durable about himself, call remember with short, "
@@ -62,8 +62,9 @@ TOOL_DEFINITIONS: List[Dict[str, Any]] = [
                 'query': {'type': 'string'},
                 'kind': {'type': 'string', 'enum': list(memory.KINDS),
                          'description': 'explicit = stated, deductive = inferred, inductive = pattern.'},
-                'observer': {'type': 'string', 'enum': list(memory.WRITER_PEERS) + ['dreamer'],
-                             'description': 'Only memories written by this peer.'},
+                'observer': {'type': 'string',
+                             'description': 'Only memories written by this peer id, e.g. marcus, claude, '
+                                            'chatgpt, gemini, grok, muse, or dreamer (nightly consolidation).'},
                 'limit': {'type': 'integer', 'minimum': 1, 'maximum': 50},
             },
             'required': ['query'],

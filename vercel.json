@@ -43,6 +43,10 @@
     ],
     "crons": [
         {
+            "path": "/api/import-step",
+            "schedule": "0 7 * * *"
+        },
+        {
             "path": "/api/dream",
             "schedule": "0 9 * * *"
         }

@@ -49,3 +49,5 @@ node_modules/
 # Local sensitive data
 private/*
 !private/README.md
+.env*
+!.env.example

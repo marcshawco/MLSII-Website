@@ -41,18 +41,22 @@ def missing_config() -> List[str]:
 
 def guess_peer(client_name: str) -> str:
     name = (client_name or '').lower()
-    for peer in memory.ASSISTANT_PEERS:
-        if peer in name:
+    peers = memory.assistant_peers()
+    for peer in sorted(peers, key=len, reverse=True):
+        if peer in name or peer.replace('-', ' ') in name:
             return peer
-    if 'anthropic' in name:
-        return 'claude'
-    if 'google' in name:
-        return 'gemini'
-    if 'xai' in name or 'x.ai' in name:
-        return 'grok'
-    if 'meta' in name:  # Meta's Muse agent (muse.ai)
-        return 'muse'
-    return ''
+    guess = ''
+    if 'openai' in name or 'gpt' in name:
+        guess = 'chatgpt'
+    elif 'anthropic' in name:
+        guess = 'claude'
+    elif 'google' in name:
+        guess = 'gemini'
+    elif 'xai' in name or 'x.ai' in name:
+        guess = 'grok'
+    elif 'meta' in name:  # Meta's Muse agent (muse.ai)
+        guess = 'muse'
+    return guess if guess in peers else ''
 
 
 # --------------------------------------------------------------------------- clients
@@ -114,7 +118,7 @@ def create_auth_code(
     peer_id: str,
     scope: str = 'mcp',
 ) -> str:
-    if peer_id not in memory.ASSISTANT_PEERS:
+    if peer_id not in memory.assistant_peers():
         raise ValueError('Choose which assistant this connection is for.')
     code = secrets.token_urlsafe(32)
     db.execute(

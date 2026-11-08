@@ -1,0 +1,36 @@
+# Keeps the shared-memory history import moving. Vercel Hobby crons only run once a
+# day, so this nudges the import worker every 30 minutes and the dream every 6 hours.
+# Both endpoints return quickly when there is nothing to do.
+# Needs repository secret MEMORY_CRON_SECRET (same value as CRON_SECRET on Vercel).
+name: memory-worker
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      BASE_URL: https://www.marcshaw.co
+      CRON_SECRET: ${{ secrets.MEMORY_CRON_SECRET }}
+    steps:
+      - name: Import step
+        run: |
+          if [ -z "$CRON_SECRET" ]; then echo "MEMORY_CRON_SECRET not set"; exit 0; fi
+          curl -sS --fail-with-body --max-time 150 -H "Authorization: Bearer $CRON_SECRET" \
+            "$BASE_URL/api/import-step" -o result.json || true
+          jq -c '{processed, facts, failed, remaining, stopped}' result.json 2>/dev/null || echo "no result"
+      - name: Dream (03, 09, 15, 21 UTC)
+        run: |
+          if [ -z "$CRON_SECRET" ]; then exit 0; fi
+          H=$(date -u +%H); M=$(date -u +%M)
+          if [ $((10#$H % 6)) -eq 3 ] && [ $((10#$M)) -lt 30 ]; then
+            curl -sS --max-time 300 -H "Authorization: Bearer $CRON_SECRET" "$BASE_URL/api/dream" | jq -c '.stats' || true
+          else
+            echo "not due"
+          fi

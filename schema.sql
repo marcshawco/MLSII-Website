@@ -16,6 +16,7 @@ INSERT INTO peers (id, kind, display_name) VALUES
     ('gemini', 'assistant', 'Gemini'),
     ('grok',   'assistant', 'Grok'),
     ('muse',   'assistant', 'Muse'),
+    ('chatgpt', 'assistant', 'ChatGPT'),
     ('dreamer', 'system',   'Dreamer (nightly consolidation)')
 ON CONFLICT (id) DO NOTHING;
 
@@ -109,6 +110,9 @@ CREATE INDEX IF NOT EXISTS conclusions_embedding_idx
     ON conclusions USING hnsw (embedding vector_cosine_ops);
 CREATE INDEX IF NOT EXISTS conclusions_tsv_idx ON conclusions USING gin (tsv);
 CREATE INDEX IF NOT EXISTS conclusions_status_idx ON conclusions (status, created_at DESC);
+-- When the dream last looked at a row, so large stores are consolidated in rotation.
+ALTER TABLE conclusions ADD COLUMN IF NOT EXISTS last_dreamed_at timestamptz;
+CREATE INDEX IF NOT EXISTS conclusions_dreamed_idx ON conclusions (last_dreamed_at NULLS FIRST) WHERE status = 'active';
 
 -- Peer card: compact identity summary, rebuilt by the dream or edited by Marcus.
 CREATE TABLE IF NOT EXISTS peer_cards (
@@ -148,3 +152,34 @@ CREATE TABLE IF NOT EXISTS dream_runs (
     stats       jsonb NOT NULL DEFAULT '{}'::jsonb,
     notes       text NOT NULL DEFAULT ''
 );
+
+-- History import: chat exports uploaded from the admin page, processed in the
+-- background (oldest first) by /api/import-step. Transcripts are wiped once
+-- their facts are extracted, so raw chats are not kept.
+CREATE TABLE IF NOT EXISTS import_batches (
+    id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    source_peer text NOT NULL REFERENCES peers (id),
+    filename    text NOT NULL DEFAULT '',
+    created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS import_items (
+    id          bigserial PRIMARY KEY,
+    batch_id    uuid NOT NULL REFERENCES import_batches (id) ON DELETE CASCADE,
+    source_peer text NOT NULL REFERENCES peers (id),
+    external_id text NOT NULL,
+    title       text NOT NULL DEFAULT '',
+    happened_at timestamptz,
+    transcript  text NOT NULL DEFAULT '',
+    status      text NOT NULL DEFAULT 'queued'
+                CHECK (status IN ('queued', 'processing', 'done', 'failed', 'skipped')),
+    attempts    integer NOT NULL DEFAULT 0,
+    facts       integer NOT NULL DEFAULT 0,
+    last_error  text,
+    claimed_at  timestamptz,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    updated_at  timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (source_peer, external_id)
+);
+CREATE INDEX IF NOT EXISTS import_items_queue_idx
+    ON import_items (happened_at NULLS LAST, id) WHERE status IN ('queued', 'processing');

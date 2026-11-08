@@ -16,15 +16,18 @@ import db
 import reasoning
 
 SUBJECT = 'marcus'
-ASSISTANT_PEERS = ('claude', 'gemini', 'grok', 'muse')
-WRITER_PEERS = (SUBJECT,) + ASSISTANT_PEERS
+SYSTEM_PEER = 'dreamer'
+RESERVED_PEER_IDS = frozenset({SUBJECT, SYSTEM_PEER, 'system', 'admin', 'owner', 'all', 'none'})
 KINDS = ('explicit', 'deductive', 'inductive')
 STATUSES = ('active', 'superseded', 'pending_review', 'retracted')
 
 MAX_CONTENT_CHARS = 1000
 MAX_FACTS_PER_CALL = 20
 MAX_SESSION_CHARS = 60000
-DEDUPE_SIMILARITY = 0.92
+# Gemini embeddings put different facts ("sister named Ana" / "mother named Ana") around 0.93, so
+# only near-identical facts are folded into an existing one; the dream merges the rest later.
+DEDUPE_SIMILARITY = 0.95
+STRONG_DUPLICATE_SIMILARITY = 0.975
 RELATED_SIMILARITY = 0.55
 DERIVE_TIME_BUDGET_S = 20.0
 
@@ -52,6 +55,38 @@ class MemoryError_(ValueError):
     """User-facing validation error (returned to the calling AI)."""
 
 
+# --------------------------------------------------------------------------- peers
+
+def list_assistants() -> List[Dict[str, Any]]:
+    return db.fetch_all("SELECT id, display_name FROM peers WHERE kind = 'assistant' ORDER BY display_name")
+
+
+def assistant_peers() -> List[str]:
+    return [r['id'] for r in list_assistants()]
+
+
+def writer_peers() -> List[str]:
+    return [SUBJECT] + assistant_peers()
+
+
+def add_assistant(display_name: str) -> str:
+    """Register a new assistant (e.g. a new AI app) so it can connect and be credited."""
+    name = re.sub(r'\s+', ' ', str(display_name or '')).strip()[:60]
+    peer_id = re.sub(r'[^a-z0-9]+', '-', name.lower()).strip('-')[:32]
+    if not peer_id:
+        raise MemoryError_('Give the assistant a name, e.g. "ChatGPT" or "Perplexity".')
+    if peer_id in RESERVED_PEER_IDS:
+        raise MemoryError_('That name is reserved. Pick another.')
+    existing = db.fetch_one('SELECT kind FROM peers WHERE id = %s', (peer_id,))
+    if existing and existing['kind'] != 'assistant':
+        raise MemoryError_('That name is reserved. Pick another.')
+    db.execute(
+        "INSERT INTO peers (id, kind, display_name) VALUES (%s, 'assistant', %s) ON CONFLICT (id) DO NOTHING",
+        (peer_id, name),
+    )
+    return peer_id
+
+
 # --------------------------------------------------------------------------- helpers
 
 def _clean_content(text: Any) -> str:
@@ -73,6 +108,23 @@ def _injection_reason(text: str) -> Optional[str]:
         if re.search(pattern, text, flags=re.IGNORECASE):
             return 'Looks like an instruction to an AI rather than a fact; held for Marcus to review.'
     return None
+
+
+def _key_terms(text: str) -> set:
+    """Numbers and capitalised words (names, places, models) other than Marcus and the first word."""
+    words = re.findall(r"[A-Za-z0-9][A-Za-z0-9'\-]*", text)
+    terms = set()
+    for i, word in enumerate(words):
+        if any(ch.isdigit() for ch in word) or (i > 0 and word[0].isupper()):
+            if word.lower() not in ('marcus', "marcus's"):
+                terms.add(word.lower())
+    return terms
+
+
+def _is_duplicate(new_text: str, existing_text: str, similarity: float) -> bool:
+    if similarity >= STRONG_DUPLICATE_SIMILARITY:
+        return True
+    return similarity >= DEDUPE_SIMILARITY and _key_terms(new_text) <= _key_terms(existing_text)
 
 
 def _public(row: Dict[str, Any], score: Optional[float] = None) -> Dict[str, Any]:
@@ -126,16 +178,19 @@ def _insert_conclusion(
     flag_reason: Optional[str] = None,
     confidence: float = 0.8,
     reinforced: int = 0,
+    observed_at: Optional[Any] = None,
 ) -> Dict[str, Any]:
     return db.fetch_one(
         f"""INSERT INTO conclusions
               (subject_peer, observer_peer, kind, content, premises, confidence, status,
-               flag_reason, session_id, embedding, embedding_model, reinforced_count)
-            VALUES (%s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, %s::vector, %s, %s)
+               flag_reason, session_id, embedding, embedding_model, reinforced_count,
+               created_at, updated_at)
+            VALUES (%s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, %s::vector, %s, %s,
+                    COALESCE(%s::timestamptz, now()), now())
             RETURNING {_COLS}""",
         (
             SUBJECT, observer, kind, content, json.dumps(premises or []), confidence, status,
-            flag_reason, session_id, vec, model, reinforced,
+            flag_reason, session_id, vec, model, reinforced, observed_at,
         ),
         conn=conn,
     )
@@ -152,6 +207,7 @@ def _store_fact(
     session_id: Optional[str] = None,
     force_status: Optional[str] = None,
     flag_reason: Optional[str] = None,
+    observed_at: Optional[Any] = None,
 ) -> Dict[str, Any]:
     """Dedupe-on-write insert. Returns {'result': created|reinforced|held, 'memory': {...}}."""
     model = reasoning.embed_model()
@@ -159,7 +215,7 @@ def _store_fact(
 
     if force_status is None:
         nearest = _similar(conn, vec, model, limit=1, statuses=('active',))
-        if nearest and nearest[0]['similarity'] >= DEDUPE_SIMILARITY:
+        if nearest and _is_duplicate(content, nearest[0]['content'], float(nearest[0]['similarity'])):
             row = db.fetch_one(
                 f"""UPDATE conclusions
                     SET reinforced_count = reinforced_count + 1, updated_at = now()
@@ -179,12 +235,13 @@ def _store_fact(
         conn,
         content=content, kind=kind, observer=observer, vec=vec, model=model,
         premises=premises, session_id=session_id, status=status, flag_reason=reason,
+        observed_at=observed_at,
     )
     return {'result': 'held_for_review' if status == 'pending_review' else 'created', 'memory': _public(row)}
 
 
 def _check_writer(observer: str) -> str:
-    if observer not in WRITER_PEERS:
+    if observer not in writer_peers():
         raise MemoryError_(f'Unknown writer: {observer}')
     return observer
 
@@ -232,12 +289,22 @@ def derive_session(session_id: str) -> Dict[str, Any]:
     with db.transaction() as conn:
         loaded = _transcript_for(conn, session_id)
     session, transcript = loaded['session'], loaded['transcript']
-    observer = session['peer_id']
-
-    # Give the deriver nearby existing memories so it skips repeats and spots conflicts.
     probe = (session['summary'] or transcript)[:4000]
+    stored = _derive_and_store(transcript, session['peer_id'], str(session_id), probe)
+    return {'session_id': str(session_id), 'derived': stored}
+
+
+def _derive_and_store(
+    transcript: str,
+    observer: str,
+    session_id: Optional[str],
+    probe: str,
+    when: Optional[Any] = None,
+) -> List[Dict[str, Any]]:
+    # Give the deriver nearby existing memories so it skips repeats and spots conflicts.
     related = _related_rows(probe, limit=15)
-    derived = reasoning.derive(transcript, related)
+    when_text = when.date().isoformat() if hasattr(when, 'date') else ''
+    derived = reasoning.derive(transcript, related, when=when_text)
     related_ids = {str(r['id']) for r in related}
 
     stored: List[Dict[str, Any]] = []
@@ -266,22 +333,23 @@ def derive_session(session_id: str) -> Dict[str, Any]:
     with db.transaction() as conn:
         i = 0
         for content in explicit:
-            stored.append(_store_fact(conn, content, vectors[i], kind='explicit', observer=observer, session_id=session_id))
+            stored.append(_store_fact(conn, content, vectors[i], kind='explicit', observer=observer,
+                                      session_id=session_id, observed_at=when))
             i += 1
         for content, premises in deductive:
             stored.append(_store_fact(
                 conn, content, vectors[i], kind='deductive', observer=observer,
-                premises=premises, session_id=session_id,
+                premises=premises, session_id=session_id, observed_at=when,
             ))
             i += 1
         for content, item in conflicts:
             reason = f'Conflicts with {item["existing_id"]}: {item["reason"]}'.strip()
             stored.append(_store_fact(
                 conn, content, vectors[i], kind='explicit', observer=observer, session_id=session_id,
-                force_status='pending_review', flag_reason=reason,
+                force_status='pending_review', flag_reason=reason, observed_at=when,
             ))
             i += 1
-    return {'session_id': str(session_id), 'derived': stored}
+    return stored
 
 
 def _enqueue(kind: str, payload: Dict[str, Any], error: str = '') -> None:
@@ -697,17 +765,19 @@ def run_dream() -> Dict[str, Any]:
                 )
         stats['reembedded'] = len(stale)
 
-    # 3. Consolidate with the dream model.
-    memories = db.fetch_all(
-        f"""SELECT {_COLS} FROM conclusions WHERE status = 'active'
-            ORDER BY reinforced_count DESC, updated_at DESC LIMIT %s""",
-        (DREAM_MAX_MEMORIES,),
-    )
+    # 3. Consolidate with the dream model. Large stores are handled in rotation: the
+    #    least-recently dreamed rows plus their nearest neighbours (so duplicates and
+    #    contradictions land in the same window), plus the most reinforced rows.
+    memories = _dream_window(model)
     card = get_card()
     if memories and not out_of_time():
         try:
             plan = reasoning.dream(memories, card['card'], card['updated_by'] or 'marcus')
             _apply_dream(plan, memories, card, stats)
+            db.execute(
+                'UPDATE conclusions SET last_dreamed_at = now() WHERE id = ANY(%s)',
+                ([m['id'] for m in memories],),
+            )
         except Exception as exc:
             notes.append(f'dream model failed: {exc}')
 
@@ -725,6 +795,45 @@ def run_dream() -> Dict[str, Any]:
         (json.dumps(stats), '\n'.join(notes), run['id']),
     )
     return {'run_id': run['id'], 'stats': stats, 'notes': notes}
+
+
+DREAM_SEEDS = 25
+DREAM_NEIGHBOURS = 8
+DREAM_CORE = 60
+
+
+def _dream_window(model: str) -> List[Dict[str, Any]]:
+    total = db.fetch_one("SELECT count(*) AS n FROM conclusions WHERE status = 'active'")['n']
+    if total <= DREAM_MAX_MEMORIES:
+        return db.fetch_all(
+            f"""SELECT {_COLS} FROM conclusions WHERE status = 'active'
+                ORDER BY reinforced_count DESC, updated_at DESC"""
+        )
+    chosen: Dict[str, Dict[str, Any]] = {}
+    for row in db.fetch_all(
+        f"""SELECT {_COLS} FROM conclusions WHERE status = 'active'
+            ORDER BY reinforced_count DESC, updated_at DESC LIMIT %s""",
+        (DREAM_CORE,),
+    ):
+        chosen[str(row['id'])] = row
+    seeds = db.fetch_all(
+        f"""SELECT {_COLS}, embedding::text AS vec FROM conclusions
+            WHERE status = 'active' AND embedding IS NOT NULL AND embedding_model = %s
+            ORDER BY last_dreamed_at NULLS FIRST, created_at LIMIT %s""",
+        (model, DREAM_SEEDS),
+    )
+    for seed in seeds:
+        if len(chosen) >= DREAM_MAX_MEMORIES:
+            break
+        chosen[str(seed['id'])] = seed
+        for row in db.fetch_all(
+            f"""SELECT {_COLS} FROM conclusions
+                WHERE status = 'active' AND embedding_model = %s AND id <> %s
+                ORDER BY embedding <=> %s::vector LIMIT %s""",
+            (model, seed['id'], seed['vec'], DREAM_NEIGHBOURS),
+        ):
+            chosen.setdefault(str(row['id']), row)
+    return list(chosen.values())[:DREAM_MAX_MEMORIES]
 
 
 def _apply_dream(plan: Dict[str, Any], memories: List[Dict[str, Any]], card: Dict[str, Any], stats: Dict[str, Any]) -> None:
@@ -803,7 +912,7 @@ def _apply_dream(plan: Dict[str, Any], memories: List[Dict[str, Any]], card: Dic
                 stats['held_for_review'] += 1
 
         for content, premise_ids in inductive:
-            _store_fact(conn, content, vectors[v], kind='inductive', observer='dreamer', premises=premise_ids)
+            _store_fact(conn, content, vectors[v], kind='inductive', observer=SYSTEM_PEER, premises=premise_ids)
             v += 1
             stats['inductive'] += 1
 
@@ -811,3 +920,263 @@ def _apply_dream(plan: Dict[str, Any], memories: List[Dict[str, Any]], card: Dic
     if new_card and new_card != card['card']:
         set_card(new_card, updated_by='dreamer')
         stats['card_updated'] = True
+
+
+# --------------------------------------------------------------------------- history import
+
+IMPORT_MAX_TRANSCRIPT_CHARS = 150_000
+IMPORT_MAX_ITEMS_PER_UPLOAD = 500
+IMPORT_CHUNK_CHARS = 20_000
+IMPORT_MAX_CHUNKS = 8
+IMPORT_MAX_ATTEMPTS = 3
+IMPORT_STALE_CLAIM = '10 minutes'
+
+
+def _parse_when(value: Any) -> Optional[str]:
+    """Accept epoch seconds/ms or an ISO string; return ISO text for Postgres, or None."""
+    from datetime import datetime, timezone
+
+    if value in (None, ''):
+        return None
+    try:
+        if isinstance(value, (int, float)):
+            seconds = value / 1000 if value > 1e11 else value
+            return datetime.fromtimestamp(seconds, tz=timezone.utc).isoformat()
+        text = str(value).strip()
+        if re.fullmatch(r'\d+(\.\d+)?', text):
+            return _parse_when(float(text))
+        parsed = datetime.fromisoformat(text.replace('Z', '+00:00'))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.isoformat()
+    except (ValueError, OverflowError, OSError):
+        return None
+
+
+def create_import_batch(source_peer: str, filename: str = '') -> str:
+    if source_peer not in writer_peers():
+        raise MemoryError_('Pick which assistant this history came from (or add it first).')
+    row = db.fetch_one(
+        'INSERT INTO import_batches (source_peer, filename) VALUES (%s, %s) RETURNING id',
+        (source_peer, str(filename or '')[:200]),
+    )
+    return str(row['id'])
+
+
+def add_import_items(batch_id: str, items: Any) -> Dict[str, int]:
+    """Queue parsed conversations. Re-uploading the same export skips ones already queued or done."""
+    batch = db.fetch_one('SELECT id, source_peer FROM import_batches WHERE id::text = %s', (str(batch_id),))
+    if not batch:
+        raise MemoryError_('Import batch not found.')
+    if not isinstance(items, list) or not items:
+        raise MemoryError_('No conversations in this upload.')
+    if len(items) > IMPORT_MAX_ITEMS_PER_UPLOAD:
+        raise MemoryError_(f'At most {IMPORT_MAX_ITEMS_PER_UPLOAD} conversations per upload request.')
+    added = skipped = rejected = 0
+    with db.transaction() as conn:
+        for item in items:
+            if not isinstance(item, dict):
+                rejected += 1
+                continue
+            transcript = str(item.get('transcript') or '').strip()
+            external_id = str(item.get('id') or '').strip()[:200]
+            if not transcript or not external_id:
+                rejected += 1
+                continue
+            row = db.fetch_one(
+                """INSERT INTO import_items (batch_id, source_peer, external_id, title, happened_at, transcript)
+                   VALUES (%s, %s, %s, %s, %s::timestamptz, %s)
+                   ON CONFLICT (source_peer, external_id) DO NOTHING RETURNING id""",
+                (
+                    batch['id'], batch['source_peer'], external_id, str(item.get('title') or '')[:300],
+                    _parse_when(item.get('at')), transcript[:IMPORT_MAX_TRANSCRIPT_CHARS],
+                ),
+                conn=conn,
+            )
+            if row:
+                added += 1
+            else:
+                skipped += 1
+    return {'added': added, 'already_imported': skipped, 'rejected': rejected}
+
+
+def import_status() -> Dict[str, Any]:
+    batches = db.fetch_all(
+        """SELECT b.id, b.source_peer, b.filename, b.created_at,
+                  count(i.id) AS total,
+                  count(i.id) FILTER (WHERE i.status IN ('queued', 'processing')) AS queued,
+                  count(i.id) FILTER (WHERE i.status = 'done') AS done,
+                  count(i.id) FILTER (WHERE i.status = 'failed') AS failed,
+                  count(i.id) FILTER (WHERE i.status = 'skipped') AS skipped,
+                  COALESCE(sum(i.facts), 0) AS facts,
+                  min(i.happened_at) AS oldest, max(i.happened_at) AS newest
+           FROM import_batches b LEFT JOIN import_items i ON i.batch_id = b.id
+           GROUP BY b.id HAVING count(i.id) > 0 ORDER BY b.created_at DESC LIMIT 30"""
+    )
+    last_error = db.fetch_one(
+        """SELECT last_error, updated_at FROM import_items
+           WHERE last_error IS NOT NULL ORDER BY updated_at DESC LIMIT 1"""
+    )
+    queued = sum(b['queued'] for b in batches)
+    return {'batches': batches, 'queued': queued, 'last_error': last_error}
+
+
+def cancel_import(batch_id: str) -> int:
+    """Stop a batch: unprocessed conversations are dropped (their text is wiped)."""
+    return db.execute(
+        """UPDATE import_items SET status = 'skipped', transcript = '', updated_at = now()
+           WHERE batch_id::text = %s AND status IN ('queued', 'failed')""",
+        (str(batch_id),),
+    )
+
+
+def retry_failed_imports() -> int:
+    return db.execute(
+        """UPDATE import_items SET status = 'queued', attempts = 0, updated_at = now()
+           WHERE status = 'failed' AND transcript <> ''"""
+    )
+
+
+def _chunks(text: str) -> List[str]:
+    if len(text) <= IMPORT_CHUNK_CHARS:
+        return [text]
+    parts: List[str] = []
+    current: List[str] = []
+    size = 0
+    for line in text.split('\n'):
+        if size + len(line) > IMPORT_CHUNK_CHARS and current:
+            parts.append('\n'.join(current))
+            current, size = [], 0
+        current.append(line[:IMPORT_CHUNK_CHARS])
+        size += len(line) + 1
+    if current:
+        parts.append('\n'.join(current))
+    if len(parts) > IMPORT_MAX_CHUNKS:
+        # Very long chats: keep the start, the end, and evenly spaced middle pieces.
+        step = (len(parts) - 1) / (IMPORT_MAX_CHUNKS - 1)
+        parts = [parts[round(i * step)] for i in range(IMPORT_MAX_CHUNKS)]
+    return parts
+
+
+def _claim_import_item() -> Optional[Dict[str, Any]]:
+    return db.fetch_one(
+        f"""UPDATE import_items SET status = 'processing', claimed_at = now(), attempts = attempts + 1,
+                 updated_at = now()
+            WHERE id = (
+                SELECT id FROM import_items
+                WHERE status = 'queued'
+                   OR (status = 'processing' AND claimed_at < now() - interval '{IMPORT_STALE_CLAIM}')
+                ORDER BY happened_at NULLS LAST, id
+                LIMIT 1 FOR UPDATE SKIP LOCKED
+            )
+            RETURNING id, source_peer, title, happened_at, transcript, attempts"""
+    )
+
+
+def _is_quota_error(exc: Exception) -> bool:
+    text = str(exc).lower()
+    return any(k in text for k in ('429', 'rate limit', 'quota', 'insufficient', 'credits', 'free tier'))
+
+
+def run_import_step(time_budget_s: float = 50.0) -> Dict[str, Any]:
+    """Process queued conversations, oldest first, until the time budget runs out."""
+    started = time.monotonic()
+    stats: Dict[str, Any] = {'processed': 0, 'facts': 0, 'failed': 0, 'stopped': ''}
+    # Leave room for one more conversation (up to IMPORT_MAX_CHUNKS model calls) after the check.
+    while time.monotonic() - started < time_budget_s:
+        item = _claim_import_item()
+        if not item:
+            stats['stopped'] = 'queue empty'
+            break
+        session = None
+        try:
+            title = item['title'] or 'Imported conversation'
+            session = db.fetch_one(
+                """INSERT INTO sessions (peer_id, title, summary, created_at)
+                   VALUES (%s, %s, %s, COALESCE(%s, now())) RETURNING id""",
+                (item['source_peer'], title[:200], 'Imported from chat history', item['happened_at']),
+            )
+            facts = 0
+            for chunk in _chunks(item['transcript']):
+                stored = _derive_and_store(
+                    f'title: {title}\n{chunk}', item['source_peer'], str(session['id']),
+                    probe=f'{title}\n{chunk[:4000]}', when=item['happened_at'],
+                )
+                facts += len(stored)
+            db.execute(
+                """UPDATE import_items SET status = 'done', transcript = '', facts = %s,
+                     last_error = NULL, updated_at = now() WHERE id = %s""",
+                (facts, item['id']),
+            )
+            stats['processed'] += 1
+            stats['facts'] += facts
+        except Exception as exc:
+            quota = _is_quota_error(exc)
+            if session:  # facts already stored from earlier chunks keep their session
+                db.execute(
+                    'DELETE FROM sessions s WHERE id = %s AND NOT EXISTS '
+                    '(SELECT 1 FROM conclusions c WHERE c.session_id = s.id)',
+                    (session['id'],),
+                )
+            db.execute(
+                """UPDATE import_items SET last_error = %s, updated_at = now(),
+                     attempts = CASE WHEN %s THEN attempts - 1 ELSE attempts END,
+                     status = CASE WHEN NOT %s AND attempts >= %s THEN 'failed' ELSE 'queued' END
+                   WHERE id = %s""",
+                (str(exc)[:500], quota, quota, IMPORT_MAX_ATTEMPTS, item['id']),
+            )
+            stats['failed'] += 1
+            if quota:
+                stats['stopped'] = 'AI quota or rate limit reached; will resume next run'
+                break
+    else:
+        stats['stopped'] = 'time budget used'
+    stats['remaining'] = db.fetch_one(
+        "SELECT count(*) AS n FROM import_items WHERE status IN ('queued', 'processing')"
+    )['n']
+    stats['seconds'] = round(time.monotonic() - started, 1)
+    return stats
+
+
+# --------------------------------------------------------------------------- export / erase
+
+_EXPORT_TABLES = {
+    'peers': 'SELECT id, kind, display_name FROM peers ORDER BY id',
+    'peer_cards': 'SELECT peer_id, card, version, updated_by, updated_at FROM peer_cards',
+    'peer_card_history': 'SELECT * FROM peer_card_history ORDER BY id',
+    'conclusions': (
+        'SELECT id, subject_peer, observer_peer, kind, content, premises, confidence, status, '
+        'superseded_by, reinforced_count, flag_reason, session_id, created_at, updated_at '
+        'FROM conclusions ORDER BY created_at'
+    ),
+    'sessions': 'SELECT * FROM sessions ORDER BY created_at',
+    'messages': 'SELECT * FROM messages ORDER BY id',
+    'import_batches': 'SELECT * FROM import_batches ORDER BY created_at',
+    'dream_runs': 'SELECT * FROM dream_runs ORDER BY id',
+}
+
+
+def export_all() -> Dict[str, Any]:
+    """Everything Marcus owns in the store, as plain JSON (embeddings and raw import text omitted)."""
+    from datetime import datetime, timezone
+
+    out: Dict[str, Any] = {
+        'exported_at': datetime.now(timezone.utc).isoformat(),
+        'format': 'mlsii-memory-export/1',
+    }
+    for name, sql in _EXPORT_TABLES.items():
+        out[name] = db.fetch_all(sql)
+    return out
+
+
+ERASE_CONFIRMATION = 'ERASE MY MEMORY'
+
+
+def erase_all(confirmation: str) -> None:
+    """Permanently delete every memory, session, import and card. Connections stay (revoke separately)."""
+    if (confirmation or '').strip() != ERASE_CONFIRMATION:
+        raise MemoryError_(f'Type {ERASE_CONFIRMATION} exactly to confirm.')
+    db.execute(
+        """TRUNCATE conclusions, messages, sessions, peer_card_history, peer_cards, jobs, dream_runs,
+                    import_items, import_batches RESTART IDENTITY CASCADE"""
+    )

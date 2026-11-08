@@ -76,9 +76,10 @@
             <select id="peer" name="peer" required>
                 <option value="" {{ 'selected' if not selected_peer }} disabled>Choose an assistant</option>
                 {% for p in peers %}
-                <option value="{{ p }}" {{ 'selected' if p == selected_peer }}>{{ p|capitalize }}</option>
+                <option value="{{ p.id }}" {{ 'selected' if p.id == selected_peer }}>{{ p.display_name }}</option>
                 {% endfor %}
             </select>
+            <p class="hint" style="font-size:0.75rem;color:#777;margin-top:0.35rem">Not listed? Add it under Connected assistants at /context/admin, then reload this page.</p>
             <label for="password">Context password</label>
             <input id="password" name="password" type="password" autocomplete="current-password" required autofocus>
             <button type="submit">Allow</button>
