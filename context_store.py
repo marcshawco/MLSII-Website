@@ -50,6 +50,8 @@ def guess_peer(client_name: str) -> str:
         return 'gemini'
     if 'xai' in name or 'x.ai' in name:
         return 'grok'
+    if 'meta' in name:  # Meta's Muse agent (muse.ai)
+        return 'muse'
     return ''
 
 

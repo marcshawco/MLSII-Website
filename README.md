@@ -201,7 +201,8 @@ Safety rules:
 ### Connect assistants
 Use the connector URL `https://<your-domain>/mcp` (Streamable HTTP, OAuth). On the consent page, pick which assistant it is and enter `CONTEXT_PASSWORD`.
 - **Claude:** Settings → Connectors → Add custom connector.
-- **Gemini / Grok / Muse:** add a custom MCP connector or remote MCP server with the same URL, if the app supports it.
+- **Muse (Meta, muse.ai):** Settings → Connectors → Add custom connector, then paste the URL. If that button is missing in your app version, ask Muse in chat to create a custom connector named "Shared Memory" with transport remote streamable HTTP, auth OAuth, and the URL above. Muse connects from Meta's cloud, so use the public HTTPS domain (localhost won't work). Access tokens last 30 days, so Muse's reported lack of refresh-token support only means signing in again about once a month.
+- **Gemini / Grok:** add a custom MCP connector or remote MCP server with the same URL, if the app supports it.
 
 In each assistant's custom instructions, add: "Use my memory connector. Call get_context at the start of personal conversations, remember when I share something durable, and log_session at the end of long chats."
 
