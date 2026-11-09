@@ -201,7 +201,7 @@ Safety and privacy:
 3. Make sure AI Gateway is enabled for the team. Deployed functions authenticate with Vercel OIDC automatically. For local runs, set `AI_GATEWAY_API_KEY` or `REASONING_FAKE=1`.
 4. Run `vercel env pull`, then `python scripts/migrate.py`.
 5. Deploy, open `/context`, and write your peer card.
-6. Add the same cron secret as the GitHub repository secret `MEMORY_CRON_SECRET`. Vercel Hobby crons run once a day, so `.github/workflows/memory-worker.yml` nudges the import every 30 minutes and the dream every 6 hours.
+6. Nothing to set up for the frequent worker. Vercel Hobby crons run once a day, so `.github/workflows/memory-worker.yml` nudges the import every 30 minutes and the dream every 6 hours. It signs in with a short-lived GitHub OIDC token instead of a stored secret, and `worker_auth.py` only accepts tokens minted for that workflow on `main` of this repository.
 
 ### Importing your history
 1. Export your chats: ChatGPT (Settings → Data controls → Export data), Claude (Settings → Privacy → Export data), Grok (Settings → Data → Download), Gemini (Google Takeout → My Activity → Gemini Apps, JSON format). Other apps: any `.json`, `.txt` or `.md` file.

@@ -203,6 +203,41 @@ def main() -> int:
     assert 'Los Angeles' not in json.dumps(gemini.tool('search_memory', query='Los Angeles')['matches'])
     assert 'already superseded' in gemini.tool('correct_memory', id=la_id)['error']
 
+    # GitHub worker: OIDC tokens are accepted only from our workflow on main
+    import time as _time
+    import jwt as _jwt
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    import worker_auth
+    gh_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    other_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    now = int(_time.time())
+    good = {
+        'iss': worker_auth.GITHUB_ISSUER, 'aud': worker_auth.WORKER_AUDIENCE, 'sub': 'repo:marcshawco/MLSII-Website:ref:refs/heads/main',
+        'iat': now, 'exp': now + 300, 'repository': 'marcshawco/MLSII-Website', 'repository_id': '894205893',
+        'repository_owner_id': '189466376', 'ref': 'refs/heads/main', 'event_name': 'schedule',
+        'workflow_ref': 'marcshawco/MLSII-Website/.github/workflows/memory-worker.yml@refs/heads/main',
+    }
+    def gh_token(key=gh_key, **changes):
+        return _jwt.encode({**good, **changes}, key, algorithm='RS256')
+    pub = gh_key.public_key()
+    assert worker_auth.authorized(f'Bearer {gh_token()}', key=pub) == 'github'
+    assert worker_auth.authorized(f'Bearer {gh_token(event_name="workflow_dispatch")}', key=pub) == 'github'
+    for bad in (gh_token(key=other_key), gh_token(aud='other'), gh_token(iss='https://evil.example'),
+                gh_token(exp=now - 120), gh_token(repository_id='1'), gh_token(ref='refs/heads/feature'),
+                gh_token(event_name='pull_request'), gh_token(repository='someone/fork'),
+                gh_token(workflow_ref='marcshawco/MLSII-Website/.github/workflows/other.yml@refs/heads/main'),
+                _jwt.encode(good, 'hmac-secret', algorithm='HS256'), 'not.a.jwt'):
+        assert worker_auth.authorized(f'Bearer {bad}', key=pub) is None, bad
+    assert worker_auth.authorized(f'Bearer {os.environ["CRON_SECRET"]}') == 'cron'
+    assert worker_auth.authorized('') is None and worker_auth.authorized('Bearer ') is None
+    real_signing_key = worker_auth._signing_key
+    worker_auth._signing_key = lambda token: pub
+    try:
+        assert client.post('/api/import-step', headers={'Authorization': f'Bearer {gh_token()}'}).status_code == 200
+        assert client.post('/api/import-step', headers={'Authorization': f'Bearer {gh_token(ref="refs/heads/x")}'}).status_code == 401
+    finally:
+        worker_auth._signing_key = real_signing_key
+
     # ask_memory cites only real ids
     answer = gemini.tool('ask_memory', question='What DAW does Marcus use?')
     assert answer['cited_ids'] and 'Ableton' in answer['answer']

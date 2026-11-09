@@ -26,6 +26,7 @@ import mcp_handler
 import memory
 import oauth_routes
 import reasoning
+import worker_auth
 
 app = Flask(__name__, static_folder='static')
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
@@ -523,10 +524,8 @@ def mcp_endpoint():
 
 @app.route('/api/dream', methods=['GET', 'POST'])
 def dream_endpoint():
-    """Nightly consolidation, triggered by Vercel Cron (sends Authorization: Bearer $CRON_SECRET)."""
-    secret = (os.environ.get('CRON_SECRET') or '').strip()
-    auth = request.headers.get('Authorization', '')
-    if not secret or not hmac.compare_digest(auth, f'Bearer {secret}'):
+    """Consolidation, triggered by Vercel Cron (CRON_SECRET) or the GitHub worker (OIDC)."""
+    if not worker_auth.authorized(request.headers.get('Authorization', '')):
         return _json_no_store({'error': 'unauthorized'}, 401)
     if not db.configured():
         return _json_no_store({'error': 'DATABASE_URL is not configured.'}, 503)
@@ -716,10 +715,8 @@ def context_export():
 
 @app.route('/api/import-step', methods=['GET', 'POST'])
 def import_step_endpoint():
-    """Background history import, triggered by cron (Authorization: Bearer $CRON_SECRET)."""
-    secret = (os.environ.get('CRON_SECRET') or '').strip()
-    auth = request.headers.get('Authorization', '')
-    if not secret or not hmac.compare_digest(auth, f'Bearer {secret}'):
+    """Background history import, triggered by Vercel Cron (CRON_SECRET) or the GitHub worker (OIDC)."""
+    if not worker_auth.authorized(request.headers.get('Authorization', '')):
         return _json_no_store({'error': 'unauthorized'}, 401)
     if not db.configured():
         return _json_no_store({'error': 'DATABASE_URL is not configured.'}, 503)

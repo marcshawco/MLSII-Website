@@ -1,7 +1,10 @@
 # Keeps the shared-memory history import moving. Vercel Hobby crons only run once a
 # day, so this nudges the import worker every 30 minutes and the dream every 6 hours.
 # Both endpoints return quickly when there is nothing to do.
-# Needs repository secret MEMORY_CRON_SECRET (same value as CRON_SECRET on Vercel).
+#
+# No stored secret: each call asks GitHub for a short-lived OIDC token, and the site
+# only accepts tokens minted for this workflow on main (see worker_auth.py).
+# This repository is public, so the log prints HTTP status codes only, never results.
 name: memory-worker
 
 on:
@@ -9,28 +12,42 @@ on:
     - cron: '*/30 * * * *'
   workflow_dispatch:
 
-permissions: {}
+permissions:
+  id-token: write   # mint the OIDC token the site checks
+  actions: write    # keepalive: stop GitHub pausing the schedule after 60 quiet days
+
+concurrency:
+  group: memory-worker
+  cancel-in-progress: false
 
 jobs:
   tick:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 8
     env:
       BASE_URL: https://www.marcshaw.co
-      CRON_SECRET: ${{ secrets.MEMORY_CRON_SECRET }}
+      AUDIENCE: marcshaw-memory-worker
+      GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Import step
+      - name: Import step, dream every 6 hours
         run: |
-          if [ -z "$CRON_SECRET" ]; then echo "MEMORY_CRON_SECRET not set"; exit 0; fi
-          curl -sS --fail-with-body --max-time 150 -H "Authorization: Bearer $CRON_SECRET" \
-            "$BASE_URL/api/import-step" -o result.json || true
-          jq -c '{processed, facts, failed, remaining, stopped}' result.json 2>/dev/null || echo "no result"
-      - name: Dream (03, 09, 15, 21 UTC)
-        run: |
-          if [ -z "$CRON_SECRET" ]; then exit 0; fi
+          call() {  # call <path> <max seconds>: fresh OIDC token per call, prints the HTTP status
+            TOKEN=$(curl -sS --fail -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+              "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$AUDIENCE" | jq -r '.value')
+            echo "::add-mask::$TOKEN"
+            CODE=$(curl -sS -o /dev/null -w '%{http_code}' --max-time "$2" \
+              -H "Authorization: Bearer $TOKEN" "$BASE_URL$1" || true)
+            echo "$1: $CODE"
+            [ "$CODE" = "200" ]
+          }
+          STATUS=0
+          call /api/import-step 150 || STATUS=1
           H=$(date -u +%H); M=$(date -u +%M)
-          if [ $((10#$H % 6)) -eq 3 ] && [ $((10#$M)) -lt 30 ]; then
-            curl -sS --max-time 300 -H "Authorization: Bearer $CRON_SECRET" "$BASE_URL/api/dream" | jq -c '.stats' || true
-          else
-            echo "not due"
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] || { [ $((10#$H % 6)) -eq 3 ] && [ $((10#$M)) -lt 30 ]; }; then
+            call /api/dream 300 || STATUS=1
           fi
+          D=$(date -u +%d)
+          if [ "$GITHUB_EVENT_NAME" = "schedule" ] && { [ "$D" = "01" ] || [ "$D" = "15" ]; } && [ "$H" = "00" ]; then
+            gh api -X PUT "repos/$GITHUB_REPOSITORY/actions/workflows/memory-worker.yml/enable" && echo "keepalive sent"
+          fi
+          exit $STATUS
