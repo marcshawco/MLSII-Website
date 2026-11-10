@@ -26,3 +26,4 @@ cachetools
 certifi>=2023.7.22
 charset-normalizer>=3.3.2
 urllib3>=2.0.7
+PyJWT[crypto]>=2.9,<3
